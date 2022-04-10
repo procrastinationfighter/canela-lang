@@ -4,8 +4,14 @@ enum OptionStr {
     None;
 }
 
-OptionStr main () {
-  printInt(fact(7)) ;
-  printInt(factr(7)) ;
+Int main () {
+  match o {
+    OptionStr::WithOffset s, c: {
+        print("many");
+    }
+    _: {
+        print("not so many");
+    }
+  };
   return 0 ;
 }
