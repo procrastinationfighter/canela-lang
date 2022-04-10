@@ -1,0 +1,9 @@
+Int main () {
+  con Func lambda = [con Str word] {
+    print("What a nice word! ");
+    print(word);
+    print("\nLovely, isn't it?\n");
+  };
+  lambda("Canela");
+  return 0 ;
+}

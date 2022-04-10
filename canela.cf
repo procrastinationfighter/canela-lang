@@ -76,6 +76,8 @@ Bool.      Type ::= "Bool" ;
 
 Void.      Type ::= "Void" ;
 
+Func.      Type ::= "Func" ;
+
 UserType.  Type ::= Ident ;
 
 internal   Fun. Type ::= Type "(" [Type] ")" ;
@@ -89,6 +91,8 @@ Const.     AccessType ::= "con" ;
 Mutable.   AccessType ::= "mut" ;
 
 -- Expressions ---------------------------------------------
+
+ELambda.   Expr7 ::= "[" [Arg] "]" Block ;
 
 EVar.      Expr6 ::= Ident ;
 
@@ -116,7 +120,7 @@ EAnd.      Expr1 ::= Expr2 "&&" Expr1 ;
 
 EOr.       Expr ::= Expr1 "||" Expr ;
 
-coercions  Expr 6 ;
+coercions  Expr 7 ;
 
 separator  Expr "," ;
 
