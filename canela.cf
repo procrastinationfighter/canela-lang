@@ -50,13 +50,15 @@ SExp.      Stmt ::= Expr  ";" ;
 
 -- Types ---------------------------------------------------
 
-Int.       Type ::= "int" ;
+Int.       Type ::= "Int" ;
 
-Str.       Type ::= "string" ;
+Str.       Type ::= "Str" ;
 
-Bool.      Type ::= "boolean" ;
+Bool.      Type ::= "Bool" ;
 
-Void.      Type ::= "void" ;
+Void.      Type ::= "Void" ;
+
+EnumType.  Type ::= Ident ;
 
 internal   Fun. Type ::= Type "(" [Type] ")" ;
 

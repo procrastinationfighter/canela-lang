@@ -1,0 +1,9 @@
+*.hi
+*.hs
+*.o
+*.x
+*.y
+*.info
+Makefile
+DocCanela.txt
+TestCanela
