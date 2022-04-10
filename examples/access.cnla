@@ -1,0 +1,17 @@
+Bool myFunction(con Str error, mut Int val) {
+    if val > 10 {
+        return true;
+    } else {
+        print(error);
+        val = val + 1;
+        return false;
+    }
+}
+
+Int main () {
+  mut Int val = 10;
+  // Will print only one "Oops" 
+  myFunction("Oops\n", val);
+  myFunction("Oops\n", val);
+  return 0 ;
+}

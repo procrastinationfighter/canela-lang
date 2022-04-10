@@ -10,7 +10,7 @@ EnDef.     TopDef ::= "enum" Ident "{" [EnVarDef] "}" ;
 
 separator nonempty TopDef "" ;
 
-Arg. 	   Arg ::= Type Ident;
+Arg. 	   Arg ::= AccessType Type Ident;
 
 separator  Arg "," ;
 
@@ -28,7 +28,7 @@ Empty.     Stmt ::= ";" ;
 
 BStmt.     Stmt ::= Block ;
 
-Decl.      Stmt ::= Type [Item] ";" ;
+Decl.      Stmt ::= AccessType Type [Item] ";" ;
 
 NoInit.    Item ::= Ident ; 
 
@@ -81,6 +81,12 @@ UserType.  Type ::= Ident ;
 internal   Fun. Type ::= Type "(" [Type] ")" ;
 
 separator  Type "," ;
+
+-- Access types --------------------------------------------
+
+Const.     AccessType ::= "con" ;
+
+Mutable.   AccessType ::= "mut" ;
 
 -- Expressions ---------------------------------------------
 
