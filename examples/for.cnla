@@ -1,0 +1,6 @@
+Int main () {
+  for i in 0..10 {
+    printInt(i);
+  }
+  return 0 ;
+}

@@ -64,6 +64,8 @@ MatchDefault. MatchVar ::= "_" ;
 
 While.     Stmt ::= "while" "(" Expr ")" Stmt ;
 
+For.       Stmt ::= "for" Ident "in" Expr ".." Expr Block;
+
 SExp.      Stmt ::= Expr  ";" ;
 
 -- Types ---------------------------------------------------
