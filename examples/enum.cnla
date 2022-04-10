@@ -5,6 +5,7 @@ enum OptionStr {
 }
 
 Int main () {
+  con OptionStr o = OptionStr::WithOffset("...Canela", 3);
   match o {
     OptionStr::WithOffset s, c: {
         print("many");

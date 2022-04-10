@@ -96,6 +96,8 @@ Mutable.   AccessType ::= "mut" ;
 
 ELambda.   Expr7 ::= "[" [Arg] "]" Block ;
 
+EEnum.     Expr6 ::= Ident "::" Ident "(" [Expr] ")" ;
+
 EVar.      Expr6 ::= Ident ;
 
 ELitInt.   Expr6 ::= Integer ;
