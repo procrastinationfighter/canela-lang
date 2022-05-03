@@ -6,7 +6,7 @@
 
 module SkelCanela where
 
-import Prelude (($), Either(..), Eq, Ord String, (++), Show, show, Read)
+import Prelude (($), Either(..), Eq, Ord, Integer, IO, Bool, String, (++), Show, show, Read, putStrLn)
 import qualified AbsCanela
 
 import Control.Monad.Identity
@@ -24,30 +24,41 @@ data Value
     | Str String 
     | Bool Bool 
     | UserType [Value] 
-    | Fun Type [Type] Env 
+    | Fun AbsCanela.Type [AbsCanela.Type] AbsCanela.Block Env 
     | Enum EnumMap
   deriving (Eq, Ord, Show, Read)
 type Loc = Integer
 type Mem = Map.Map Loc Value
 type Var = (AbsCanela.AccessType, Loc)
-type Env = Map.Map Ident Var
-type EnumMap = Map.Map Ident [AbsCanela.Type]
+type Env = Map.Map AbsCanela.Ident Var
+type EnumMap = Map.Map AbsCanela.Ident [AbsCanela.Type]
 
 type Run a = ReaderT Env (ErrorT String (StateT Mem IO)) a
-type Result = Run
+type Result a = Run a
 
-failure :: Show a => a -> Result
-failure x = Left $ "Undefined case: " ++ show x
+failure :: Show a => a -> Result ()
+failure x = do throwError $ "Undefined case: " ++ show x;
+               return ();
 {-
 transIdent :: AbsCanela.Ident -> Result
 transIdent x = case x of
   AbsCanela.Ident string -> failure x
 -}
-transProgram :: Show a => AbsCanela.Program' a -> Result Integer
+
+interpret :: Show a => AbsCanela.Program' a -> IO()
+interpret program = do
+  x <- runStateT (runErrorT (runReaderT monad Map.empty)) Map.empty
+  case x of
+    ((Left err), _) -> putStrLn err
+    _ -> return ()
+    where
+      monad = transProgram program
+
+transProgram :: Show a => AbsCanela.Program' a -> Result ()
 transProgram x = case x of
   AbsCanela.Program _ topdefs -> failure x
 
-transTopDef :: Show a => AbsCanela.TopDef' a -> Result Env
+transTopDef :: Show a => AbsCanela.TopDef' a -> Result ()
 transTopDef x = case x of
   AbsCanela.FnDef _ type_ ident args block -> failure x
   AbsCanela.EnDef _ ident envardefs -> failure x
@@ -110,7 +121,7 @@ transAccessType x = case x of
   AbsCanela.Const _ -> failure x
   AbsCanela.Mutable _ -> failure x
 
-transExpr :: Show a => AbsCanela.Expr' a -> Result Value
+transExpr :: Show a => AbsCanela.Expr' a -> Result ()
 transExpr x = case x of
   AbsCanela.ELambda _ args block -> failure x
   AbsCanela.EEnum _ ident1 ident2 exprs -> failure x
@@ -128,18 +139,18 @@ transExpr x = case x of
   AbsCanela.EAnd _ expr1 expr2 -> failure x
   AbsCanela.EOr _ expr1 expr2 -> failure x
 
-transAddOp :: Show a => AbsCanela.AddOp' a -> Result Integer
+transAddOp :: Show a => AbsCanela.AddOp' a -> Result ()
 transAddOp x = case x of
   AbsCanela.Plus _ -> failure x
   AbsCanela.Minus _ -> failure x
 
-transMulOp :: Show a => AbsCanela.MulOp' a -> Result Integer
+transMulOp :: Show a => AbsCanela.MulOp' a -> Result ()
 transMulOp x = case x of
   AbsCanela.Times _ -> failure x
   AbsCanela.Div _ -> failure x
   AbsCanela.Mod _ -> failure x
 
-transRelOp :: Show a => AbsCanela.RelOp' a -> Result Bool
+transRelOp :: Show a => AbsCanela.RelOp' a -> Result ()
 transRelOp x = case x of
   AbsCanela.LTH _ -> failure x
   AbsCanela.LE _ -> failure x
