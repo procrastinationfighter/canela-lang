@@ -18,9 +18,6 @@ import Data.Maybe
 
 import qualified Data.Map as Map 
 
-type Err = Either String
-type Result = Err String
-
 -- TODO: Lambdas shall be done at the end.
 data Value 
     = Int Integer 
@@ -36,35 +33,38 @@ type Var = (AbsCanela.AccessType, Loc)
 type Env = Map.Map Ident Var
 type EnumMap = Map.Map Ident [AbsCanela.Type]
 
+type Run a = ReaderT Env (ErrorT String (StateT Mem IO)) a
+type Result = Run
+
 failure :: Show a => a -> Result
 failure x = Left $ "Undefined case: " ++ show x
-
+{-
 transIdent :: AbsCanela.Ident -> Result
 transIdent x = case x of
   AbsCanela.Ident string -> failure x
-
-transProgram :: Show a => AbsCanela.Program' a -> Result
+-}
+transProgram :: Show a => AbsCanela.Program' a -> Result Integer
 transProgram x = case x of
   AbsCanela.Program _ topdefs -> failure x
 
-transTopDef :: Show a => AbsCanela.TopDef' a -> Result
+transTopDef :: Show a => AbsCanela.TopDef' a -> Result Env
 transTopDef x = case x of
   AbsCanela.FnDef _ type_ ident args block -> failure x
   AbsCanela.EnDef _ ident envardefs -> failure x
 
-transArg :: Show a => AbsCanela.Arg' a -> Result
+transArg :: Show a => AbsCanela.Arg' a -> Result ()
 transArg x = case x of
   AbsCanela.Arg _ accesstype type_ ident -> failure x
 
-transEnVarDef :: Show a => AbsCanela.EnVarDef' a -> Result
+transEnVarDef :: Show a => AbsCanela.EnVarDef' a -> Result ()
 transEnVarDef x = case x of
   AbsCanela.EnVarDef _ ident types -> failure x
 
-transBlock :: Show a => AbsCanela.Block' a -> Result
+transBlock :: Show a => AbsCanela.Block' a -> Result ()
 transBlock x = case x of
   AbsCanela.Block _ stmts -> failure x
 
-transStmt :: Show a => AbsCanela.Stmt' a -> Result
+transStmt :: Show a => AbsCanela.Stmt' a -> Result ()
 transStmt x = case x of
   AbsCanela.Empty _ -> failure x
   AbsCanela.BStmt _ block -> failure x
@@ -81,21 +81,21 @@ transStmt x = case x of
   AbsCanela.For _ ident expr1 expr2 block -> failure x
   AbsCanela.SExp _ expr -> failure x
 
-transItem :: Show a => AbsCanela.Item' a -> Result
+transItem :: Show a => AbsCanela.Item' a -> Result ()
 transItem x = case x of
   AbsCanela.NoInit _ ident -> failure x
   AbsCanela.Init _ ident expr -> failure x
 
-transMatchBranch :: Show a => AbsCanela.MatchBranch' a -> Result
+transMatchBranch :: Show a => AbsCanela.MatchBranch' a -> Result ()
 transMatchBranch x = case x of
   AbsCanela.MatchBr _ matchvar block -> failure x
 
-transMatchVar :: Show a => AbsCanela.MatchVar' a -> Result
+transMatchVar :: Show a => AbsCanela.MatchVar' a -> Result ()
 transMatchVar x = case x of
   AbsCanela.MatchVar _ ident1 ident2 idents -> failure x
   AbsCanela.MatchDefault _ -> failure x
 
-transType :: Show a => AbsCanela.Type' a -> Result
+transType :: Show a => AbsCanela.Type' a -> Result ()
 transType x = case x of
   AbsCanela.Int _ -> failure x
   AbsCanela.Str _ -> failure x
@@ -105,12 +105,12 @@ transType x = case x of
   AbsCanela.UserType _ ident -> failure x
   AbsCanela.Fun _ type_ types -> failure x
 
-transAccessType :: Show a => AbsCanela.AccessType' a -> Result
+transAccessType :: Show a => AbsCanela.AccessType' a -> Result ()
 transAccessType x = case x of
   AbsCanela.Const _ -> failure x
   AbsCanela.Mutable _ -> failure x
 
-transExpr :: Show a => AbsCanela.Expr' a -> Result
+transExpr :: Show a => AbsCanela.Expr' a -> Result Value
 transExpr x = case x of
   AbsCanela.ELambda _ args block -> failure x
   AbsCanela.EEnum _ ident1 ident2 exprs -> failure x
@@ -128,18 +128,18 @@ transExpr x = case x of
   AbsCanela.EAnd _ expr1 expr2 -> failure x
   AbsCanela.EOr _ expr1 expr2 -> failure x
 
-transAddOp :: Show a => AbsCanela.AddOp' a -> Result
+transAddOp :: Show a => AbsCanela.AddOp' a -> Result Integer
 transAddOp x = case x of
   AbsCanela.Plus _ -> failure x
   AbsCanela.Minus _ -> failure x
 
-transMulOp :: Show a => AbsCanela.MulOp' a -> Result
+transMulOp :: Show a => AbsCanela.MulOp' a -> Result Integer
 transMulOp x = case x of
   AbsCanela.Times _ -> failure x
   AbsCanela.Div _ -> failure x
   AbsCanela.Mod _ -> failure x
 
-transRelOp :: Show a => AbsCanela.RelOp' a -> Result
+transRelOp :: Show a => AbsCanela.RelOp' a -> Result Bool
 transRelOp x = case x of
   AbsCanela.LTH _ -> failure x
   AbsCanela.LE _ -> failure x
