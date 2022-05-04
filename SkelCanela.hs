@@ -79,7 +79,7 @@ raiseError str pos = do
 
 interpret :: AbsCanela.Program -> IO ()
 interpret program = do
-  let initialState = Map.fromList [(locBankLoc, (Int minimalLoc)), (returnLoc, Void)]
+  let initialState = Map.fromList [(locBankLoc, (Int minimalLoc)), (returnLoc, NoReturnFlag)]
   x <- runStateT (runErrorT (runReaderT monad Map.empty)) (initialState);
   case x of
     ((Left err), _) -> hPutStrLn stderr err
@@ -93,7 +93,7 @@ runProgram (AbsCanela.Program pos topdefs) = do
   mainRes <- local (\_ -> env) (eval $ AbsCanela.EApp pos (AbsCanela.Ident "main") [])
   case mainRes of
     (Int x) -> printStderr $ "Main returned " ++ (show x) ++ "."
-    _ -> printStderr "Function main does not return Int."
+    _ -> printStderr $ "Function main does not return Int. It returns " ++ (show mainRes)
   return ()
 
 readTopDefs :: [AbsCanela.TopDef] -> Result Env
@@ -158,21 +158,21 @@ exec :: AbsCanela.Stmt -> Result ()
 exec x = do
   st <- get
   case Map.lookup returnLoc st of
-    Just NoReturnFlag -> do transStmt x
+    Just NoReturnFlag -> do 
+      transStmt x
     Nothing -> do throwError "CRITICAL ERROR: Return loc is empty"; return ();
     _ -> return ()
 
 execStmtList :: [AbsCanela.Stmt] -> Result ()
 execStmtList [] = return ()
 execStmtList (stmt:stmts) = do
-  exec stmt
-  execStmtList stmts
+  exec stmt >> execStmtList stmts
 
 transStmt :: AbsCanela.Stmt -> Result ()
 transStmt x = case x of
   AbsCanela.Empty _ -> failure x
-  AbsCanela.BStmt _ (Block pos stmts) -> do
-
+  AbsCanela.BStmt _ (AbsCanela.Block _ stmts) -> do
+    execStmtList stmts
   AbsCanela.Decl _ accesstype type_ items -> failure x
   AbsCanela.Ass _ ident expr -> failure x
   AbsCanela.Incr _ ident -> failure x
@@ -236,19 +236,25 @@ getFunction ident pos = do
 
 eval :: AbsCanela.Expr -> Result Value
 eval x = case x of
+  AbsCanela.ELitInt _ integer -> return (Int integer)
   AbsCanela.EApp pos ident exprs -> do 
     -- TODO: Add passing arguments (and checking their type correctness).
     (Fun _ _ block env) <- getFunction ident pos
     
     local (\_ -> env) $ do 
       -- TODO: Add returns.
-      transStmt (AbsCanela.BStmt pos block)
-
+      exec (AbsCanela.BStmt pos block)
       st <- get
       case Map.lookup returnLoc st of
-        Just NoReturnFlag -> return Void;
-        Just x -> return x;
-        Nothing -> do throwError "CRITICAL ERROR: Return loc is empty"; return Void;
+        Just NoReturnFlag -> do 
+          return Void;
+        Just x -> do 
+          put $ Map.insert returnLoc NoReturnFlag st;
+          return x;
+        Nothing -> do 
+          throwError "CRITICAL ERROR: Return loc is empty"; 
+          return Void;
+
   _ -> do 
     failure x
     return (Int 1)
