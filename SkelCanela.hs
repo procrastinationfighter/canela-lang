@@ -63,6 +63,10 @@ transIdent x = case x of
 printStderr :: String -> Result ()
 printStderr err = liftIO $ hPutStrLn stderr err
 
+raiseError :: String -> AbsCanela.BNFC'Position -> Result ()
+raiseError str pos = do 
+  throwError $ "ERROR AT " ++ (show pos) ++ str
+
 interpret :: AbsCanela.Program -> IO ()
 interpret program = do
   x <- runStateT (runErrorT (runReaderT monad Map.empty)) (Map.singleton 0 (Int 1));
@@ -107,7 +111,7 @@ declTopDef x = case x of
     -- finalEnv also contains the function's arguments as local variables.
     -- Hence, other functions should only see this function, 
     -- but this function can also see its variables.
-    let newEnv = Map.insert ident ((AbsCanela.Mutable pos), loc) env
+    let newEnv = Map.insert ident ((AbsCanela.Const pos), loc) env
     let finalEnv = Map.union newEnv $ foldl addArgToEnv Map.empty args
     let vars = map (\(AbsCanela.Arg _ _ t i) -> (i, t)) args
 
@@ -139,7 +143,7 @@ transBlock :: Show a => AbsCanela.Block' a -> Result ()
 transBlock x = case x of
   AbsCanela.Block _ stmts -> failure x
 
-transStmt :: Show a => AbsCanela.Stmt' a -> Result ()
+transStmt :: AbsCanela.Stmt -> Result ()
 transStmt x = case x of
   AbsCanela.Empty _ -> failure x
   AbsCanela.BStmt _ block -> failure x
@@ -185,12 +189,33 @@ transAccessType x = case x of
   AbsCanela.Const _ -> failure x
   AbsCanela.Mutable _ -> failure x
 
+getFunction :: AbsCanela.Ident -> AbsCanela.BNFC'Position -> Result Value
+getFunction ident pos = do
+  env <- ask
+  st <- get
+  case Map.lookup ident env of
+    Just (_, loc) -> case Map.lookup loc st of
+      Just (Fun t as b e) -> return (Fun t as b e)
+      _ -> do 
+        raiseError ("Object " ++ (show ident) ++ " is not a function.") pos
+        return (Int 21)
+    _ -> do 
+      raiseError ((show ident) ++ " was not declared.") pos
+      return (Int 37)
+
 eval :: AbsCanela.Expr -> Result Value
 eval x = case x of
-  AbsCanela.EApp _ ident exprs -> do 
+  AbsCanela.EApp pos ident exprs -> do 
+    -- TODO: Add passing arguments (and checking their type correctness).
+    (Fun _ _ block env) <- getFunction ident pos
+    
+    local (\_ -> env) $ do 
+      -- TODO: Add returns.
+      transStmt (AbsCanela.BStmt pos block)
+      return (Int 0)
+  _ -> do 
     failure x
     return (Int 1)
-  _ -> return (Int 1)
 {-
 eval x = case x of
   AbsCanela.ELambda _ args block -> failure x
