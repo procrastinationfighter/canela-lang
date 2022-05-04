@@ -6,7 +6,8 @@
 
 module SkelCanela where
 
-import Prelude (($), Either(..), Eq, Ord, Integer, IO, Bool, String, (++), Show, show, Read, putStrLn)
+import Prelude
+import System.IO ( hPutStrLn, stderr )
 import qualified AbsCanela
 
 import Control.Monad.Identity
@@ -24,17 +25,31 @@ data Value
     | Str String 
     | Bool Bool 
     | UserType [Value] 
-    | Fun AbsCanela.Type [AbsCanela.Type] AbsCanela.Block Env 
+    | Fun AbsCanela.Type [(AbsCanela.Ident, AbsCanela.Type)] AbsCanela.Block Env 
     | Enum EnumMap
   deriving (Eq, Ord, Show, Read)
 type Loc = Integer
 type Mem = Map.Map Loc Value
+
 type Var = (AbsCanela.AccessType, Loc)
 type Env = Map.Map AbsCanela.Ident Var
 type EnumMap = Map.Map AbsCanela.Ident [AbsCanela.Type]
 
 type Run a = ReaderT Env (ErrorT String (StateT Mem IO)) a
 type Result a = Run a
+
+
+newloc :: Result Loc
+newloc = do
+  st <- get
+  case Map.lookup 0 st of
+    Just (Int x) -> do
+      put (Map.insert 0 (Int (x + 1)) st)
+      return x
+    _ -> do 
+      throwError $ "Newloc did not obtain an int.";
+      return 0;
+  
 
 failure :: Show a => a -> Result ()
 failure x = do throwError $ "Undefined case: " ++ show x;
@@ -45,25 +60,74 @@ transIdent x = case x of
   AbsCanela.Ident string -> failure x
 -}
 
-interpret :: Show a => AbsCanela.Program' a -> IO()
+printStderr :: String -> Result ()
+printStderr err = liftIO $ hPutStrLn stderr err
+
+interpret :: AbsCanela.Program -> IO ()
 interpret program = do
-  x <- runStateT (runErrorT (runReaderT monad Map.empty)) Map.empty
+  x <- runStateT (runErrorT (runReaderT monad Map.empty)) (Map.singleton 0 (Int 1));
   case x of
-    ((Left err), _) -> putStrLn err
+    ((Left err), _) -> hPutStrLn stderr err
     _ -> return ()
     where
-      monad = transProgram program
+      monad = runProgram program
 
-transProgram :: Show a => AbsCanela.Program' a -> Result ()
-transProgram x = case x of
-  AbsCanela.Program _ topdefs -> failure x
+runProgram :: AbsCanela.Program -> Result ()
+runProgram (AbsCanela.Program pos topdefs) = do
+  env <- readTopDefs topdefs
+  mainRes <- local (\_ -> env) (eval $ AbsCanela.EApp pos (AbsCanela.Ident "main") [])
+  case mainRes of
+    (Int x) -> printStderr $ "Main returned " ++ (show x) ++ "."
+    _ -> printStderr "Function main does not return Int."
+  return ()
 
-transTopDef :: Show a => AbsCanela.TopDef' a -> Result ()
-transTopDef x = case x of
-  AbsCanela.FnDef _ type_ ident args block -> failure x
-  AbsCanela.EnDef _ ident envardefs -> failure x
+readTopDefs :: [AbsCanela.TopDef] -> Result Env
+readTopDefs defs = case defs of
+  [] -> do
+    env <- ask;
+    return env
+  d:ds -> do
+    newEnv <- declTopDef d;
+    local (\_ -> newEnv) $ do 
+      finalEnv <- readTopDefs ds
+      return finalEnv
 
-transArg :: Show a => AbsCanela.Arg' a -> Result ()
+addArgToEnv :: Env -> AbsCanela.Arg -> Env
+addArgToEnv env (AbsCanela.Arg _ accessType _ ident) = Map.insert ident (accessType, 0) env
+
+-- TODO: Check typing
+declTopDef :: AbsCanela.TopDef -> Result Env
+declTopDef x = case x of
+  AbsCanela.FnDef pos type_ ident args block -> do
+    env <- ask
+    loc <- newloc
+    st <- get
+
+    -- newEnv adds the function into the environment,
+    -- finalEnv also contains the function's arguments as local variables.
+    -- Hence, other functions should only see this function, 
+    -- but this function can also see its variables.
+    let newEnv = Map.insert ident ((AbsCanela.Mutable pos), loc) env
+    let finalEnv = Map.union newEnv $ foldl addArgToEnv Map.empty args
+    let vars = map (\(AbsCanela.Arg _ _ t i) -> (i, t)) args
+
+    let fun = (Fun type_ vars block finalEnv)
+    put $ Map.insert loc fun st
+    return newEnv
+  AbsCanela.EnDef pos ident envardefs -> do
+    env <- ask
+    loc <- newloc
+    st <- get
+
+    let newEnv = Map.insert ident ((AbsCanela.Const pos), loc) env
+
+    let mapping = \m (AbsCanela.EnVarDef _ ident types) -> Map.insert ident types m
+    let enum = Enum (foldl mapping Map.empty envardefs)
+    put $ Map.insert loc enum st
+
+    return Map.empty
+
+transArg :: AbsCanela.Arg -> Result ()
 transArg x = case x of
   AbsCanela.Arg _ accesstype type_ ident -> failure x
 
@@ -121,8 +185,14 @@ transAccessType x = case x of
   AbsCanela.Const _ -> failure x
   AbsCanela.Mutable _ -> failure x
 
-transExpr :: Show a => AbsCanela.Expr' a -> Result ()
-transExpr x = case x of
+eval :: AbsCanela.Expr -> Result Value
+eval x = case x of
+  AbsCanela.EApp _ ident exprs -> do 
+    failure x
+    return (Int 1)
+  _ -> return (Int 1)
+{-
+eval x = case x of
   AbsCanela.ELambda _ args block -> failure x
   AbsCanela.EEnum _ ident1 ident2 exprs -> failure x
   AbsCanela.EVar _ ident -> failure x
@@ -138,6 +208,7 @@ transExpr x = case x of
   AbsCanela.ERel _ expr1 relop expr2 -> failure x
   AbsCanela.EAnd _ expr1 expr2 -> failure x
   AbsCanela.EOr _ expr1 expr2 -> failure x
+-}
 
 transAddOp :: Show a => AbsCanela.AddOp' a -> Result ()
 transAddOp x = case x of
