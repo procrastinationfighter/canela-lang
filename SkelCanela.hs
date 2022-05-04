@@ -162,10 +162,17 @@ exec x = do
     Nothing -> do throwError "CRITICAL ERROR: Return loc is empty"; return ();
     _ -> return ()
 
+execStmtList :: [AbsCanela.Stmt] -> Result ()
+execStmtList [] = return ()
+execStmtList (stmt:stmts) = do
+  exec stmt
+  execStmtList stmts
+
 transStmt :: AbsCanela.Stmt -> Result ()
 transStmt x = case x of
   AbsCanela.Empty _ -> failure x
-  AbsCanela.BStmt _ block -> failure x
+  AbsCanela.BStmt _ (Block pos stmts) -> do
+
   AbsCanela.Decl _ accesstype type_ items -> failure x
   AbsCanela.Ass _ ident expr -> failure x
   AbsCanela.Incr _ ident -> failure x
