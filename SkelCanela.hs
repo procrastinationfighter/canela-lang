@@ -21,12 +21,14 @@ import qualified Data.Map as Map
 
 -- TODO: Lambdas shall be done at the end.
 data Value 
-    = Int Integer 
+    = Void
+    | Int Integer 
     | Str String 
     | Bool Bool 
     | UserType [Value] 
     | Fun AbsCanela.Type [(AbsCanela.Ident, AbsCanela.Type)] AbsCanela.Block Env 
     | Enum EnumMap
+    | NoReturnFlag
   deriving (Eq, Ord, Show, Read)
 type Loc = Integer
 type Mem = Map.Map Loc Value
@@ -38,13 +40,21 @@ type EnumMap = Map.Map AbsCanela.Ident [AbsCanela.Type]
 type Run a = ReaderT Env (ErrorT String (StateT Mem IO)) a
 type Result a = Run a
 
+locBankLoc :: Loc
+locBankLoc = 0
+
+returnLoc :: Loc
+returnLoc = 1
+
+minimalLoc :: Loc
+minimalLoc = 2
 
 newloc :: Result Loc
 newloc = do
   st <- get
-  case Map.lookup 0 st of
+  case Map.lookup locBankLoc st of
     Just (Int x) -> do
-      put (Map.insert 0 (Int (x + 1)) st)
+      put (Map.insert locBankLoc (Int (x + 1)) st)
       return x
     _ -> do 
       throwError $ "Newloc did not obtain an int.";
@@ -69,7 +79,8 @@ raiseError str pos = do
 
 interpret :: AbsCanela.Program -> IO ()
 interpret program = do
-  x <- runStateT (runErrorT (runReaderT monad Map.empty)) (Map.singleton 0 (Int 1));
+  let initialState = Map.fromList [(locBankLoc, (Int minimalLoc)), (returnLoc, Void)]
+  x <- runStateT (runErrorT (runReaderT monad Map.empty)) (initialState);
   case x of
     ((Left err), _) -> hPutStrLn stderr err
     _ -> return ()
@@ -143,6 +154,14 @@ transBlock :: Show a => AbsCanela.Block' a -> Result ()
 transBlock x = case x of
   AbsCanela.Block _ stmts -> failure x
 
+exec :: AbsCanela.Stmt -> Result ()
+exec x = do
+  st <- get
+  case Map.lookup returnLoc st of
+    Just NoReturnFlag -> do transStmt x
+    Nothing -> do throwError "CRITICAL ERROR: Return loc is empty"; return ();
+    _ -> return ()
+
 transStmt :: AbsCanela.Stmt -> Result ()
 transStmt x = case x of
   AbsCanela.Empty _ -> failure x
@@ -151,8 +170,13 @@ transStmt x = case x of
   AbsCanela.Ass _ ident expr -> failure x
   AbsCanela.Incr _ ident -> failure x
   AbsCanela.Decr _ ident -> failure x
-  AbsCanela.Ret _ expr -> failure x
-  AbsCanela.VRet _ -> failure x
+  AbsCanela.Ret _ expr -> do
+    st <- get
+    value <- eval expr
+    put $ Map.insert returnLoc value st
+  AbsCanela.VRet _ -> do
+    st <- get
+    put $ Map.insert returnLoc Void st
   AbsCanela.Cond _ expr block -> failure x
   AbsCanela.CondElse _ expr block1 block2 -> failure x
   AbsCanela.Match _ expr matchbranchs -> failure x
@@ -198,10 +222,10 @@ getFunction ident pos = do
       Just (Fun t as b e) -> return (Fun t as b e)
       _ -> do 
         raiseError ("Object " ++ (show ident) ++ " is not a function.") pos
-        return (Int 21)
+        return Void
     _ -> do 
       raiseError ((show ident) ++ " was not declared.") pos
-      return (Int 37)
+      return Void
 
 eval :: AbsCanela.Expr -> Result Value
 eval x = case x of
@@ -212,7 +236,12 @@ eval x = case x of
     local (\_ -> env) $ do 
       -- TODO: Add returns.
       transStmt (AbsCanela.BStmt pos block)
-      return (Int 0)
+
+      st <- get
+      case Map.lookup returnLoc st of
+        Just NoReturnFlag -> return Void;
+        Just x -> return x;
+        Nothing -> do throwError "CRITICAL ERROR: Return loc is empty"; return Void;
   _ -> do 
     failure x
     return (Int 1)
