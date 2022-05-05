@@ -57,12 +57,12 @@ newloc = do
       put (Map.insert locBankLoc (Int (x + 1)) st)
       return x
     _ -> do 
-      throwError $ "Newloc did not obtain an int.";
+      throwError $ "CRITICAL ERROR: Newloc did not obtain an int.";
       return 0;
   
 
 failure :: Show a => a -> Result ()
-failure x = do throwError $ "Undefined case: " ++ show x;
+failure x = do throwError $ "CRITICAL ERROR: Undefined case: " ++ show x;
                return ();
 {-
 transIdent :: AbsCanela.Ident -> Result
@@ -73,9 +73,13 @@ transIdent x = case x of
 printStderr :: String -> Result ()
 printStderr err = liftIO $ hPutStrLn stderr err
 
+showPos :: AbsCanela.BNFC'Position -> String
+showPos (Just (x, y)) = "row " ++ (show x) ++ ", col " ++ (show y)
+showPos Nothing = "unknown position"
+
 raiseError :: String -> AbsCanela.BNFC'Position -> Result ()
 raiseError str pos = do 
-  throwError $ "ERROR AT " ++ (show pos) ++ str
+  throwError $ "ERROR AT " ++ (showPos pos) ++ ": " ++ str
 
 interpret :: AbsCanela.Program -> IO ()
 interpret program = do
@@ -93,7 +97,7 @@ runProgram (AbsCanela.Program pos topdefs) = do
   mainRes <- local (\_ -> env) (eval $ AbsCanela.EApp pos (AbsCanela.Ident "main") [])
   case mainRes of
     (Int x) -> printStderr $ "Main returned " ++ (show x) ++ "."
-    _ -> printStderr $ "Function main does not return Int. It returns " ++ (show mainRes)
+    _ -> printStderr $ "Function main does not return Int."
   return ()
 
 readTopDefs :: [AbsCanela.TopDef] -> Result Env
