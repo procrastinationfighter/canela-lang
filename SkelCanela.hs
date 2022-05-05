@@ -11,7 +11,7 @@ import System.IO ( hPutStrLn, stderr )
 import qualified AbsCanela
 
 import Control.Monad.Identity
-import Control.Monad.Error
+import Control.Monad.Except
 import Control.Monad.Reader
 import Control.Monad.State
 import Control.Monad.Writer
@@ -37,7 +37,7 @@ type Var = (AbsCanela.AccessType, Loc)
 type Env = Map.Map AbsCanela.Ident Var
 type EnumMap = Map.Map AbsCanela.Ident [AbsCanela.Type]
 
-type Run a = ReaderT Env (ErrorT String (StateT Mem IO)) a
+type Run a = ReaderT Env (ExceptT String (StateT Mem IO)) a
 type Result a = Run a
 
 locBankLoc :: Loc
@@ -84,7 +84,7 @@ raiseError str pos = do
 interpret :: AbsCanela.Program -> IO ()
 interpret program = do
   let initialState = Map.fromList [(locBankLoc, (Int minimalLoc)), (returnLoc, NoReturnFlag)]
-  x <- runStateT (runErrorT (runReaderT monad Map.empty)) (initialState);
+  x <- runStateT (runExceptT (runReaderT monad Map.empty)) (initialState);
   case x of
     ((Left err), _) -> hPutStrLn stderr err
     _ -> return ()
