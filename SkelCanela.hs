@@ -29,6 +29,7 @@ data Value
     | Fun AbsCanela.Type [(AbsCanela.Ident, AbsCanela.Type)] AbsCanela.Block Env 
     | Enum EnumMap
     | NoReturnFlag
+    | ErrorVal
   deriving (Eq, Ord, Show, Read)
 type Loc = Integer
 type Mem = Map.Map Loc Value
@@ -158,41 +159,142 @@ transBlock :: Show a => AbsCanela.Block' a -> Result ()
 transBlock x = case x of
   AbsCanela.Block _ stmts -> failure x
 
-exec :: AbsCanela.Stmt -> Result ()
+exec :: AbsCanela.Stmt -> Result Env
 exec x = do
+  env <- ask
   st <- get
   case Map.lookup returnLoc st of
     Just NoReturnFlag -> transStmt x;
-    Nothing -> do throwError "CRITICAL ERROR: Return loc is empty"; return ();
-    _ -> return ();
+    Nothing -> do throwError "CRITICAL ERROR: Return loc is empty"; return Map.empty;
+    _ -> return env;
 
-execStmtList :: [AbsCanela.Stmt] -> Result ()
-execStmtList [] = return ()
+execStmtList :: [AbsCanela.Stmt] -> Result Env
+execStmtList [] = ask
 execStmtList (stmt:stmts) = do
-  exec stmt >> execStmtList stmts
+  env <- exec stmt
+  local (\_ -> env) $ execStmtList stmts
 
-transStmt :: AbsCanela.Stmt -> Result ()
+checkIfEnumExists :: AbsCanela.Ident -> AbsCanela.BNFC'Position -> Result ()
+checkIfEnumExists ident pos = do
+  env <- ask
+  st <- get
+  case Map.lookup ident env of
+    Just (_, loc) -> case Map.lookup loc st of
+      Just (Enum _) -> return ()
+      _ -> do raiseError ((show ident) ++ " is not a type.") pos; return ();
+    Nothing -> do raiseError ("Type " ++ (show ident) ++ " was not defined.") pos; return ();
+
+getItemIdent :: AbsCanela.Item -> AbsCanela.Ident
+getItemIdent (AbsCanela.Init _ ident _) = ident
+getItemIdent (AbsCanela.NoInit _ ident) = ident
+
+getItemPos :: AbsCanela.Item -> AbsCanela.BNFC'Position
+getItemPos (AbsCanela.Init pos _ _) = pos
+getItemPos (AbsCanela.NoInit pos _) = pos
+
+{-
+data Value 
+    = Void
+    | Int Integer 
+    | Str String 
+    | Bool Bool 
+    | UserType [Value] 
+    | Fun AbsCanela.Type [(AbsCanela.Ident, AbsCanela.Type)] AbsCanela.Block Env 
+    | Enum EnumMap
+    | NoReturnFlag
+    | ErrorVal
+  deriving (Eq, Ord, Show, Read)
+-}
+checkValueType :: Value -> AbsCanela.Type -> AbsCanela.BNFC'Position -> Result ()
+-- TODO: Add user type checking
+checkValueType (Void) (AbsCanela.Void _) _ = return ()
+checkValueType (Int _) (AbsCanela.Int _) _ = return ()
+checkValueType (Str _) (AbsCanela.Str _) _ = return ()
+checkValueType (Bool _) (AbsCanela.Bool _) _ = return ()
+-- TODO: Checking functional type could be simplified if Fun in memory kept the AbsCanela.Fun type.
+checkValueType (Fun retType1 leftArgs _ _) (AbsCanela.Fun _ retType2 args2) pos = do
+  let retOk = AbsCanela.compareAbsType retType1 retType2
+  let args1 = map (\x -> snd x) leftArgs
+  let argsOk = AbsCanela.compareArgsType args1 args2
+  if retOk
+    then if argsOk
+      then
+        return ()
+      else do
+        raiseError ("Functional types' arguments do not match.") pos; return ();
+    else do
+        raiseError ("Functional types' return types do not match.") pos; return ();
+checkValueType _ type_ pos = do raiseError ("Expression is not of type " ++ (show type_)) pos; return ();
+
+getDefaultVarValue :: AbsCanela.Type -> Result Value
+-- TODO: Add support for all types
+getDefaultVarValue (AbsCanela.Int _) = return (Int 0)
+getDefaultVarValue (AbsCanela.Str _) = return (Str "")
+getDefaultVarValue (AbsCanela.Bool _) = return (Bool False)
+getDefaultVarValue _ = do
+  throwError "CRITICAL ERROR: DEFAULT VALUE FOR THIS VAR DOES NOT EXIST"
+  return (Int 0)
+
+initVariable :: AbsCanela.Item -> AbsCanela.AccessType -> AbsCanela.Type -> Result Env
+initVariable item accessType type_ = do 
+  env <- ask
+  st <- get
+  loc <- newloc
+  let ident = getItemIdent item
+  let newEnv = Map.insert ident (accessType, loc) env
+  val <- case item of
+    (AbsCanela.Init pos _ expr) -> do
+      value <- eval expr
+      checkValueType value type_ pos
+      return value
+    (AbsCanela.NoInit pos _) -> getDefaultVarValue type_
+  
+  put $ Map.insert loc val st
+  return newEnv
+
+declVars :: [AbsCanela.Item] -> AbsCanela.AccessType -> AbsCanela.Type -> Result Env
+declVars [] _ _ = ask
+declVars (item:items) accessType type_ = do
+  env <- ask
+  let ident = getItemIdent item
+  let pos = getItemPos item
+  case Map.lookup ident env of
+    Just (AbsCanela.Const _, _) -> do raiseError ((show ident) ++ " is not mutable and can't be reassigned.") pos; return Map.empty;
+    _ -> do
+      env <- initVariable item accessType type_
+      local (\_ -> env) $ do
+        declVars items accessType type_
+
+transStmt :: AbsCanela.Stmt -> Result Env
 transStmt x = case x of
-  AbsCanela.Empty _ -> return ();
-  AbsCanela.BStmt _ (AbsCanela.Block _ stmts) -> do
-    execStmtList stmts
-  AbsCanela.Decl _ accesstype type_ items -> failure x
-  AbsCanela.Ass _ ident expr -> failure x
-  AbsCanela.Incr _ ident -> failure x
-  AbsCanela.Decr _ ident -> failure x
+  AbsCanela.Empty _ -> ask
+  AbsCanela.BStmt _ (AbsCanela.Block _ stmts) -> execStmtList stmts
+  AbsCanela.Decl _ accessType type_ items -> do
+    -- Check if type is correct 
+    case type_ of
+      (AbsCanela.Void pos) -> do raiseError "Variables can't be of type Void." pos; return Map.empty;
+      (AbsCanela.UserType pos ident) -> do 
+        checkIfEnumExists ident pos
+        declVars items accessType type_
+      _ -> declVars items accessType type_
+  AbsCanela.Ass _ ident expr -> do failure x; return Map.empty;
+  AbsCanela.Incr _ ident -> do failure x; return Map.empty;
+  AbsCanela.Decr _ ident -> do failure x; return Map.empty;
   AbsCanela.Ret _ expr -> do
     st <- get
     value <- eval expr
     put $ Map.insert returnLoc value st
+    ask
   AbsCanela.VRet _ -> do
     st <- get
     put $ Map.insert returnLoc Void st
-  AbsCanela.Cond _ expr block -> failure x
-  AbsCanela.CondElse _ expr block1 block2 -> failure x
-  AbsCanela.Match _ expr matchbranchs -> failure x
-  AbsCanela.While _ expr stmt -> failure x
-  AbsCanela.For _ ident expr1 expr2 block -> failure x
-  AbsCanela.SExp _ expr -> failure x
+    ask
+  AbsCanela.Cond _ expr block -> do failure x; return Map.empty;
+  AbsCanela.CondElse _ expr block1 block2 -> do failure x; return Map.empty;
+  AbsCanela.Match _ expr matchbranchs -> do failure x; return Map.empty;
+  AbsCanela.While _ expr stmt -> do failure x; return Map.empty;
+  AbsCanela.For _ ident expr1 expr2 block -> do failure x; return Map.empty;
+  AbsCanela.SExp _ expr -> do failure x; return Map.empty;
 
 transItem :: Show a => AbsCanela.Item' a -> Result ()
 transItem x = case x of
@@ -232,20 +334,33 @@ getFunction ident pos = do
       Just (Fun t as b e) -> return (Fun t as b e)
       _ -> do 
         raiseError ("Object " ++ (show ident) ++ " is not a function.") pos
-        return Void
+        return ErrorVal
     _ -> do 
-      raiseError ((show ident) ++ " was not declared.") pos
-      return Void
+      raiseError ("Function " ++ (show ident) ++ " was not declared.") pos
+      return ErrorVal
 
 eval :: AbsCanela.Expr -> Result Value
 eval x = case x of
+  AbsCanela.EVar pos ident -> do
+    env <- ask
+    st <- get
+
+    case Map.lookup ident env of
+      Just (_, loc) -> case Map.lookup loc st of
+        Just x -> return x;
+        Nothing -> do 
+          throwError ("CRITICAL ERROR: location of variable " ++ (show ident) ++ " does not exist."); 
+          return ErrorVal;
+      Nothing -> do 
+        raiseError ("Variable " ++ (show ident) ++ " was not declared") pos 
+        return ErrorVal
   AbsCanela.ELitInt _ integer -> return (Int integer)
   AbsCanela.EApp pos ident exprs -> do 
     -- TODO: Add passing arguments (and checking their type correctness).
     (Fun _ _ block env) <- getFunction ident pos
     
     local (\_ -> env) $ do 
-      -- TODO: Add returns.
+      -- TODO: Check if return type matches
       exec (AbsCanela.BStmt pos block)
       st <- get
       case Map.lookup returnLoc st of
@@ -256,7 +371,7 @@ eval x = case x of
           return x;
         Nothing -> do 
           throwError "CRITICAL ERROR: Return loc is empty"; 
-          return Void;
+          return ErrorVal;
 
   _ -> do 
     failure x

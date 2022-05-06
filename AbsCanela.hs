@@ -10,11 +10,11 @@
 
 module AbsCanela where
 
-import Prelude (Integer, String)
+import Prelude (Integer, String, (&&), (==))
 import qualified Prelude as C
   ( Eq, Ord, Show, Read
   , Functor, Foldable, Traversable
-  , Int, Maybe(..)
+  , Int, Bool( True, False ), Maybe(..)
   )
 import qualified Data.String
 
@@ -80,6 +80,21 @@ data Type' a
     | UserType a Ident
     | Fun a (Type' a) [Type' a]
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
+
+compareArgsType :: [Type' a] -> [Type' b] -> C.Bool
+compareArgsType (_:_) [] = C.False
+compareArgsType [] (_:_) = C.False
+compareArgsType [] [] = C.True
+compareArgsType (x:xs) (y:ys) = (compareAbsType x y) && (compareArgsType xs ys)
+
+compareAbsType :: Type' a -> Type' b -> C.Bool
+compareAbsType (Int _) (Int _) = C.True
+compareAbsType (Str _) (Str _) = C.True
+compareAbsType (Bool _) (Bool _) = C.True
+compareAbsType (Void _) (Void _) = C.True
+compareAbsType (UserType _ ident1) (UserType _ ident2) = ident1 == ident2
+compareAbsType (Fun _ ret1 args1) (Fun _ ret2 args2) = (compareAbsType ret1 ret2) && (compareArgsType args1 args2)
+compareAbsType _ _ = C.False
 
 type AccessType = AccessType' BNFC'Position
 data AccessType' a = Const a | Mutable a
