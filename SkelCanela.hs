@@ -289,8 +289,20 @@ transStmt x = case x of
     st <- get
     put $ Map.insert returnLoc Void st
     ask
-  AbsCanela.Cond _ expr block -> do failure x; return Map.empty;
-  AbsCanela.CondElse _ expr block1 block2 -> do failure x; return Map.empty;
+  AbsCanela.Cond pos expr block -> do 
+    cond <- eval expr
+    checkValueType cond (AbsCanela.Bool pos) pos
+    let (Bool c) = cond
+    if c
+      then exec (AbsCanela.BStmt pos block)
+      else ask
+  AbsCanela.CondElse pos expr block1 block2 -> do 
+    cond <- eval expr
+    checkValueType cond (AbsCanela.Bool pos) pos
+    let (Bool c) = cond
+    if c
+      then exec (AbsCanela.BStmt pos block1)
+      else exec (AbsCanela.BStmt pos block2)
   AbsCanela.Match _ expr matchbranchs -> do failure x; return Map.empty;
   AbsCanela.While _ expr stmt -> do failure x; return Map.empty;
   AbsCanela.For _ ident expr1 expr2 block -> do failure x; return Map.empty;

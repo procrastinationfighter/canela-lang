@@ -1,7 +1,8 @@
 Int main () {
-  mut Int x = 2;
-  mut Str y = "x";
-  mut Bool z = true;
-  con Int x = 3;
-  return x;
+  // Main returns 2.
+  if false {
+    return 2;
+  } else {
+    return 4;
+  }
 }
