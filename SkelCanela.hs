@@ -355,6 +355,9 @@ eval x = case x of
         raiseError ("Variable " ++ (show ident) ++ " was not declared") pos 
         return ErrorVal
   AbsCanela.ELitInt _ integer -> return (Int integer)
+  AbsCanela.ELitTrue _ -> return (Bool True)
+  AbsCanela.ELitFalse _ -> return (Bool False)
+  AbsCanela.EString _ string -> return (Str string)
   AbsCanela.EApp pos ident exprs -> do 
     -- TODO: Add passing arguments (and checking their type correctness).
     (Fun _ _ block env) <- getFunction ident pos

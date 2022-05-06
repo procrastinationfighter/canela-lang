@@ -1,4 +1,7 @@
 Int main () {
-  con Int x = 2;
+  mut Int x = 2;
+  mut Str y = "x";
+  mut Bool z = true;
+  con Int x = 3;
   return x;
 }
