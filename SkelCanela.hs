@@ -290,17 +290,13 @@ transStmt x = case x of
     put $ Map.insert returnLoc Void st
     ask
   AbsCanela.Cond pos expr block -> do 
-    cond <- eval expr
-    checkValueType cond (AbsCanela.Bool pos) pos
-    let (Bool c) = cond
-    if c
+    (Bool b) <- evalBool expr pos
+    if b
       then exec (AbsCanela.BStmt pos block)
       else ask
   AbsCanela.CondElse pos expr block1 block2 -> do 
-    cond <- eval expr
-    checkValueType cond (AbsCanela.Bool pos) pos
-    let (Bool c) = cond
-    if c
+    (Bool b) <- evalBool expr pos
+    if b
       then exec (AbsCanela.BStmt pos block1)
       else exec (AbsCanela.BStmt pos block2)
   AbsCanela.Match _ expr matchbranchs -> do failure x; return Map.empty;
@@ -351,6 +347,18 @@ getFunction ident pos = do
       raiseError ("Function " ++ (show ident) ++ " was not declared.") pos
       return ErrorVal
 
+evalBool :: AbsCanela.Expr -> AbsCanela.BNFC'Position -> Result Value
+evalBool expr pos = do
+  cond <- eval expr
+  checkValueType cond (AbsCanela.Bool pos) pos
+  return cond
+
+evalInt :: AbsCanela.Expr -> AbsCanela.BNFC'Position -> Result Value
+evalInt expr pos = do
+  cond <- eval expr
+  checkValueType cond (AbsCanela.Int pos) pos
+  return cond
+
 eval :: AbsCanela.Expr -> Result Value
 eval x = case x of
   AbsCanela.EVar pos ident -> do
@@ -387,7 +395,41 @@ eval x = case x of
         Nothing -> do 
           throwError "CRITICAL ERROR: Return loc is empty"; 
           return ErrorVal;
-
+  AbsCanela.Neg pos expr -> do
+    (Int i) <- evalInt expr pos
+    return (Int $ negate i)
+  AbsCanela.Not pos expr -> do
+    (Bool b) <- evalBool expr pos
+    return (Bool $ not b)
+  AbsCanela.EMul pos expr1 mulop expr2 -> do
+    (Int i1) <- evalInt expr1 pos
+    (Int i2) <- evalInt expr2 pos
+    case mulop of
+      (AbsCanela.Times _) -> return (Int $ i1 * i2)
+      (AbsCanela.Div pos) -> if i2 == 0 
+        then do
+          raiseError "Division by 0" pos
+          return (Int 0)
+        else return (Int $ i1 `div` i2)
+      (AbsCanela.Mod pos) -> if i2 == 0 
+        then do
+          raiseError "Modulo division by 0" pos
+          return (Int 0)
+        else return (Int $ i1 `mod` i2)
+  AbsCanela.EAdd pos expr1 addop expr2 -> do
+    (Int i1) <- evalInt expr1 pos
+    (Int i2) <- evalInt expr2 pos
+    case addop of
+      (AbsCanela.Plus _) -> return (Int $ i1 + i2)
+      (AbsCanela.Minus _) -> return (Int $ i1 - i2)
+  AbsCanela.EAnd pos expr1 expr2 -> do
+    (Bool b1) <- evalBool expr1 pos
+    (Bool b2) <- evalBool expr2 pos
+    return (Bool $ b1 && b2)
+  AbsCanela.EOr pos expr1 expr2 -> do
+    (Bool b1) <- evalBool expr1 pos
+    (Bool b2) <- evalBool expr2 pos
+    return (Bool $ b1 || b2)
   _ -> do 
     failure x
     return (Int 1)
