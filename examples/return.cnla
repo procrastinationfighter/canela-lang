@@ -1,6 +1,7 @@
 Int main () {
-  // Main returns 2.
-  if true || true {
+  con Int x = 3;
+  con Int y = 2;
+  if x == 3 {
     return 2 - 5;
   } else {
     return 4;

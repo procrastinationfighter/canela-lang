@@ -347,6 +347,45 @@ getFunction ident pos = do
       raiseError ("Function " ++ (show ident) ++ " was not declared.") pos
       return ErrorVal
 
+-- LTH a | LE a | GTH a | GE a | EQU a | NE a
+
+{-
+data Value 
+    = Void
+    | Int Integer 
+    | Str String 
+    | Bool Bool 
+    | UserType [Value] 
+    | Fun AbsCanela.Type [(AbsCanela.Ident, AbsCanela.Type)] AbsCanela.Block Env 
+    | Enum EnumMap
+    | NoReturnFlag
+    | ErrorVal
+  deriving (Eq, Ord, Show, Read)
+-}
+compareValues :: AbsCanela.RelOp -> Value -> Value -> AbsCanela.BNFC'Position -> Result Bool
+-- TODO: Add comparison for enums and functions
+compareValues (AbsCanela.NE p) v1 v2 pos = do
+  res <- compareValues (AbsCanela.EQU p) v1 v2 pos
+  return $ not res
+compareValues (AbsCanela.GE p) v1 v2 pos = do
+  eq <- compareValues (AbsCanela.EQU p) v1 v2 pos 
+  gth <- compareValues (AbsCanela.GTH p) v1 v2 pos
+  return $ eq && gth
+compareValues (AbsCanela.LE p) v1 v2 pos = do
+  res <- compareValues (AbsCanela.LTH p) v1 v2 pos
+  return $ not res
+compareValues (AbsCanela.LTH p) v1 v2 pos = do 
+  res <- compareValues (AbsCanela.GE p) v1 v2 pos
+  return $ not res
+compareValues (AbsCanela.EQU _) (Bool b1) (Bool b2) _ = return $ b1 == b2
+compareValues (AbsCanela.EQU _) (Int i1) (Int i2) _ = return $ i1 == i2
+compareValues (AbsCanela.EQU _) (Str s1) (Str s2) _ = return $ s1 == s2
+compareValues (AbsCanela.GTH _) (Bool b1) (Bool b2) _ = return $ b1 > b2
+compareValues (AbsCanela.GTH _) (Int i1) (Int i2) _ = return $ i1 > i2
+compareValues (AbsCanela.GTH _) (Str s1) (Str s2) _ = return $ s1 > s2
+compareValues _ (Fun _ _ _ _) (Fun _ _ _ _) pos = do raiseError "Functions can only be equal or not." pos; return False;
+compareValues _ _ _ pos = do raiseError "The types are not comparable." pos; return False;
+
 evalBool :: AbsCanela.Expr -> AbsCanela.BNFC'Position -> Result Value
 evalBool expr pos = do
   cond <- eval expr
@@ -422,6 +461,11 @@ eval x = case x of
     case addop of
       (AbsCanela.Plus _) -> return (Int $ i1 + i2)
       (AbsCanela.Minus _) -> return (Int $ i1 - i2)
+  AbsCanela.ERel pos expr1 relop expr2 -> do
+    val1 <- eval expr1
+    val2 <- eval expr2
+    result <- compareValues relop val1 val2 pos
+    return (Bool result)
   AbsCanela.EAnd pos expr1 expr2 -> do
     (Bool b1) <- evalBool expr1 pos
     (Bool b2) <- evalBool expr2 pos
