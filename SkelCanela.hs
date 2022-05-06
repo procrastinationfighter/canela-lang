@@ -162,10 +162,9 @@ exec :: AbsCanela.Stmt -> Result ()
 exec x = do
   st <- get
   case Map.lookup returnLoc st of
-    Just NoReturnFlag -> do 
-      transStmt x
+    Just NoReturnFlag -> transStmt x;
     Nothing -> do throwError "CRITICAL ERROR: Return loc is empty"; return ();
-    _ -> return ()
+    _ -> return ();
 
 execStmtList :: [AbsCanela.Stmt] -> Result ()
 execStmtList [] = return ()
@@ -174,7 +173,7 @@ execStmtList (stmt:stmts) = do
 
 transStmt :: AbsCanela.Stmt -> Result ()
 transStmt x = case x of
-  AbsCanela.Empty _ -> failure x
+  AbsCanela.Empty _ -> return ();
   AbsCanela.BStmt _ (AbsCanela.Block _ stmts) -> do
     execStmtList stmts
   AbsCanela.Decl _ accesstype type_ items -> failure x
