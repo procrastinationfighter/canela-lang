@@ -238,8 +238,9 @@ getDefaultVarValue _ = do
 initVariable :: AbsCanela.Item -> AbsCanela.AccessType -> AbsCanela.Type -> Result Env
 initVariable item accessType type_ = do 
   env <- ask
-  st <- get
   loc <- newloc
+  st <- get
+  
   let ident = getItemIdent item
   let newEnv = Map.insert ident (accessType, loc) env
   val <- case item of
