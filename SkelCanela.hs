@@ -371,7 +371,7 @@ compareValues (AbsCanela.NE p) v1 v2 pos = do
 compareValues (AbsCanela.GE p) v1 v2 pos = do
   eq <- compareValues (AbsCanela.EQU p) v1 v2 pos 
   gth <- compareValues (AbsCanela.GTH p) v1 v2 pos
-  return $ eq && gth
+  return $ eq || gth
 compareValues (AbsCanela.LE p) v1 v2 pos = do
   res <- compareValues (AbsCanela.LTH p) v1 v2 pos
   return $ not res
@@ -478,23 +478,10 @@ eval x = case x of
   _ -> do 
     failure x
     return (Int 1)
-{-
+{- TODO:
 eval x = case x of
   AbsCanela.ELambda _ args block -> failure x
   AbsCanela.EEnum _ ident1 ident2 exprs -> failure x
-  AbsCanela.EVar _ ident -> failure x
-  AbsCanela.ELitInt _ integer -> failure x
-  AbsCanela.ELitTrue _ -> failure x
-  AbsCanela.ELitFalse _ -> failure x
-  AbsCanela.EApp _ ident exprs -> failure x
-  AbsCanela.EString _ string -> failure x
-  AbsCanela.Neg _ expr -> failure x
-  AbsCanela.Not _ expr -> failure x
-  AbsCanela.EMul _ expr1 mulop expr2 -> failure x
-  AbsCanela.EAdd _ expr1 addop expr2 -> failure x
-  AbsCanela.ERel _ expr1 relop expr2 -> failure x
-  AbsCanela.EAnd _ expr1 expr2 -> failure x
-  AbsCanela.EOr _ expr1 expr2 -> failure x
 -}
 
 transAddOp :: Show a => AbsCanela.AddOp' a -> Result ()
