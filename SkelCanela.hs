@@ -282,6 +282,22 @@ declVars (item:items) accessType type_ = do
       local (\_ -> env) $ do
         declVars items accessType type_
 
+execFor :: AbsCanela.Stmt -> Loc -> Integer -> Result Env 
+-- TODO: This doesn't handle returns well.
+execFor stmt loc limit = do
+  st <- get
+  case Map.lookup loc st of
+    (Just (Int x)) -> do
+      if x < limit 
+        then do
+          exec stmt
+          st <- get
+          put $ Map.insert loc (Int (x + 1)) st
+          execFor stmt loc limit
+        else
+          ask
+    _ -> do throwError "CRITICAL ERROR: Iterator not found in the state."; ask;
+
 transStmt :: AbsCanela.Stmt -> Result Env
 transStmt x = case x of
   AbsCanela.Empty _ -> ask
@@ -345,38 +361,23 @@ transStmt x = case x of
         newEnv <- exec stmt
         local (\_ -> newEnv) $ exec (AbsCanela.While pos expr stmt)
       else ask
+  AbsCanela.For pos ident expr1 expr2 block -> do 
+    (Int left) <- evalInt expr1 pos
+    (Int right) <- evalInt expr2 pos 
+    -- Declare the new variable.
+    let initVal = (AbsCanela.ELitInt pos left)
+    let initItems = [(AbsCanela.Init pos ident initVal)]
+    newEnv <- exec (AbsCanela.Decl pos (AbsCanela.Const pos) (AbsCanela.Int pos) initItems)
 
-  AbsCanela.For _ ident expr1 expr2 block -> do failure x; return Map.empty;
+    case Map.lookup ident newEnv of
+      Just (_, loc) -> local (\_ -> newEnv) $ execFor (AbsCanela.BStmt pos block) loc right
+      _ -> do throwError "CRITICAL ERROR: Iterator not found in the environment"; ask;
   AbsCanela.SExp _ expr -> do failure x; return Map.empty;
-
-transItem :: Show a => AbsCanela.Item' a -> Result ()
-transItem x = case x of
-  AbsCanela.NoInit _ ident -> failure x
-  AbsCanela.Init _ ident expr -> failure x
-
-transMatchBranch :: Show a => AbsCanela.MatchBranch' a -> Result ()
-transMatchBranch x = case x of
-  AbsCanela.MatchBr _ matchvar block -> failure x
 
 transMatchVar :: Show a => AbsCanela.MatchVar' a -> Result ()
 transMatchVar x = case x of
   AbsCanela.MatchVar _ ident1 ident2 idents -> failure x
   AbsCanela.MatchDefault _ -> failure x
-
-transType :: Show a => AbsCanela.Type' a -> Result ()
-transType x = case x of
-  AbsCanela.Int _ -> failure x
-  AbsCanela.Str _ -> failure x
-  AbsCanela.Bool _ -> failure x
-  AbsCanela.Void _ -> failure x
-  AbsCanela.Func _ -> failure x
-  AbsCanela.UserType _ ident -> failure x
-  AbsCanela.Fun _ type_ types -> failure x
-
-transAccessType :: Show a => AbsCanela.AccessType' a -> Result ()
-transAccessType x = case x of
-  AbsCanela.Const _ -> failure x
-  AbsCanela.Mutable _ -> failure x
 
 getFunction :: AbsCanela.Ident -> AbsCanela.BNFC'Position -> Result Value
 getFunction ident pos = do

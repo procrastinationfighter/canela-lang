@@ -1,6 +1,7 @@
 Int main () {
+  mut Int x = 2;
   for i in 0..10 {
-    printInt(i);
+    x = x * 2;
   }
-  return 0 ;
+  return x;
 }
