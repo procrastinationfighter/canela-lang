@@ -1,7 +1,7 @@
 Int main () {
   con Int x = 3;
-  con Int y = 2;
-  con Int z = 3;
+  mut Int y = true;
+  con Int z = 3;;
   if y !=  3 {
     return 2 - 5;
   } else {

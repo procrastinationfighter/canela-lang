@@ -205,6 +205,22 @@ data Value
     | ErrorVal
   deriving (Eq, Ord, Show, Read)
 -}
+
+checkIfValuesTypesMatch :: Value -> Value -> AbsCanela.BNFC'Position -> Result ()
+-- TODO: Check enum types
+checkIfValuesTypesMatch l r pos = do
+  let lType = f l 
+  let rType = f r
+  if lType /= rType 
+    then do raiseError "Left hand side and right hand side types do not match!" pos; return ();
+    else return ()
+    where
+      f Void = 0
+      f (Int _) = 1
+      f (Str _) = 2
+      f (Bool _) = 3
+      f (Fun _ _ _ _) = 5
+
 checkValueType :: Value -> AbsCanela.Type -> AbsCanela.BNFC'Position -> Result ()
 -- TODO: Add user type checking
 checkValueType (Void) (AbsCanela.Void _) _ = return ()
@@ -278,7 +294,20 @@ transStmt x = case x of
         checkIfEnumExists ident pos
         declVars items accessType type_
       _ -> declVars items accessType type_
-  AbsCanela.Ass _ ident expr -> do failure x; return Map.empty;
+  AbsCanela.Ass pos ident expr -> do 
+    env <- ask
+    st <- get
+    case Map.lookup ident env of
+      Just (AbsCanela.Const _, _) -> do raiseError ("Variable " ++ (show ident) ++ " is immutable.") pos; ask;
+      Just (AbsCanela.Mutable _, loc) -> do
+        case Map.lookup loc st of
+          Just x -> do
+            value <- eval expr
+            checkIfValuesTypesMatch x value pos
+            put $ Map.insert loc value st
+            ask
+          Nothing -> do throwError $ "CRITICAL ERROR: State for loc " ++ (show loc) ++ " is empty"; ask;
+      Nothing -> do raiseError ("Object " ++ (show ident) ++ " was not defined.") pos; ask;
   AbsCanela.Incr _ ident -> do failure x; return Map.empty;
   AbsCanela.Decr _ ident -> do failure x; return Map.empty;
   AbsCanela.Ret _ expr -> do
@@ -348,21 +377,6 @@ getFunction ident pos = do
       raiseError ("Function " ++ (show ident) ++ " was not declared.") pos
       return ErrorVal
 
--- LTH a | LE a | GTH a | GE a | EQU a | NE a
-
-{-
-data Value 
-    = Void
-    | Int Integer 
-    | Str String 
-    | Bool Bool 
-    | UserType [Value] 
-    | Fun AbsCanela.Type [(AbsCanela.Ident, AbsCanela.Type)] AbsCanela.Block Env 
-    | Enum EnumMap
-    | NoReturnFlag
-    | ErrorVal
-  deriving (Eq, Ord, Show, Read)
--}
 compareValues :: AbsCanela.RelOp -> Value -> Value -> AbsCanela.BNFC'Position -> Result Bool
 -- TODO: Add comparison for enums and functions
 compareValues (AbsCanela.NE p) v1 v2 pos = do
