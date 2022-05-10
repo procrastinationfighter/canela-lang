@@ -338,7 +338,14 @@ transStmt x = case x of
       then exec (AbsCanela.BStmt pos block1)
       else exec (AbsCanela.BStmt pos block2)
   AbsCanela.Match _ expr matchbranchs -> do failure x; return Map.empty;
-  AbsCanela.While _ expr stmt -> do failure x; return Map.empty;
+  AbsCanela.While pos expr stmt -> do 
+    (Bool b) <- evalBool expr pos
+    if b
+      then do
+        newEnv <- exec stmt
+        local (\_ -> newEnv) $ exec (AbsCanela.While pos expr stmt)
+      else ask
+
   AbsCanela.For _ ident expr1 expr2 block -> do failure x; return Map.empty;
   AbsCanela.SExp _ expr -> do failure x; return Map.empty;
 

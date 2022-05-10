@@ -1,0 +1,11 @@
+Int main () {
+  mut Int x = 10;
+  mut Int y = 0;
+
+  while x > 5 {
+      y = y + 10;
+      x--;
+  }
+  // Should return 50.
+  return y;
+}
