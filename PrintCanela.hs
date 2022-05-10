@@ -193,7 +193,7 @@ instance Print (AbsCanela.Stmt' a) where
     AbsCanela.Cond _ expr block -> prPrec i 0 (concatD [doc (showString "if"), prt 0 expr, prt 0 block])
     AbsCanela.CondElse _ expr block1 block2 -> prPrec i 0 (concatD [doc (showString "if"), prt 0 expr, prt 0 block1, doc (showString "else"), prt 0 block2])
     AbsCanela.Match _ expr matchbranchs -> prPrec i 0 (concatD [doc (showString "match"), prt 0 expr, doc (showString "{"), prt 0 matchbranchs, doc (showString "}"), doc (showString ";")])
-    AbsCanela.While _ expr stmt -> prPrec i 0 (concatD [doc (showString "while"), doc (showString "("), prt 0 expr, doc (showString ")"), prt 0 stmt])
+    AbsCanela.While _ expr stmt -> prPrec i 0 (concatD [doc (showString "while"), prt 0 expr, prt 0 stmt])
     AbsCanela.For _ id_ expr1 expr2 block -> prPrec i 0 (concatD [doc (showString "for"), prt 0 id_, doc (showString "in"), prt 0 expr1, doc (showString ".."), prt 0 expr2, prt 0 block])
     AbsCanela.SExp _ expr -> prPrec i 0 (concatD [prt 0 expr, doc (showString ";")])
 
