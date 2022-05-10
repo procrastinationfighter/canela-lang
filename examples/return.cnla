@@ -1,8 +1,9 @@
 Int main () {
   con Int x = 3;
-  mut Int y = true;
-  con Int z = 3;;
-  if y !=  3 {
+  mut Bool y = true;
+  mut Int z = 3;;
+  y--;
+  if z ==  2 {
     return 2 - 5;
   } else {
     return 4;

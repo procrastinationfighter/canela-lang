@@ -308,8 +308,16 @@ transStmt x = case x of
             ask
           Nothing -> do throwError $ "CRITICAL ERROR: State for loc " ++ (show loc) ++ " is empty"; ask;
       Nothing -> do raiseError ("Object " ++ (show ident) ++ " was not defined.") pos; ask;
-  AbsCanela.Incr _ ident -> do failure x; return Map.empty;
-  AbsCanela.Decr _ ident -> do failure x; return Map.empty;
+  AbsCanela.Incr pos ident -> do 
+    value <- eval (AbsCanela.EVar pos ident)
+    case value of
+      (Int x) -> exec (AbsCanela.Ass pos ident (AbsCanela.ELitInt pos (x + 1)))
+      _ -> do raiseError ("Variable " ++ (show ident) ++ " is not of type int.") pos; ask;
+  AbsCanela.Decr pos ident -> do 
+    value <- eval (AbsCanela.EVar pos ident)
+    case value of
+      (Int x) -> exec (AbsCanela.Ass pos ident (AbsCanela.ELitInt pos (x - 1)))
+      _ -> do raiseError ("Variable " ++ (show ident) ++ " is not of type int.") pos; ask;
   AbsCanela.Ret _ expr -> do
     st <- get
     value <- eval expr
