@@ -400,7 +400,7 @@ getFunction ident pos = do
       return ErrorVal
 
 compareValues :: AbsCanela.RelOp -> Value -> Value -> AbsCanela.BNFC'Position -> Result Bool
--- TODO: Add comparison for enums and functions
+-- TODO: Add comparison for enums
 compareValues (AbsCanela.NE p) v1 v2 pos = do
   res <- compareValues (AbsCanela.EQU p) v1 v2 pos
   return $ not res
@@ -420,7 +420,6 @@ compareValues (AbsCanela.EQU _) (Str s1) (Str s2) _ = return $ s1 == s2
 compareValues (AbsCanela.GTH _) (Bool b1) (Bool b2) _ = return $ b1 > b2
 compareValues (AbsCanela.GTH _) (Int i1) (Int i2) _ = return $ i1 > i2
 compareValues (AbsCanela.GTH _) (Str s1) (Str s2) _ = return $ s1 > s2
-compareValues _ (Fun _ _ _ _) (Fun _ _ _ _) pos = do raiseError "Functions can only be equal or not." pos; return False;
 compareValues _ _ _ pos = do raiseError "The types are not comparable." pos; return False;
 
 evalBool :: AbsCanela.Expr -> AbsCanela.BNFC'Position -> Result Value
