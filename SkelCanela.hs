@@ -283,7 +283,6 @@ declVars (item:items) accessType type_ = do
         declVars items accessType type_
 
 execFor :: AbsCanela.Stmt -> Loc -> Integer -> Result Env 
--- TODO: This doesn't handle returns well.
 execFor stmt loc limit = do
   st <- get
   case Map.lookup loc st of
@@ -293,7 +292,11 @@ execFor stmt loc limit = do
           exec stmt
           st <- get
           put $ Map.insert loc (Int (x + 1)) st
-          execFor stmt loc limit
+
+          -- If Return occured inside the loop, don't do more iterations.
+          case Map.lookup returnLoc st of
+            Just NoReturnFlag -> execFor stmt loc limit
+            _ -> ask
         else
           ask
     _ -> do throwError "CRITICAL ERROR: Iterator not found in the state."; ask;
@@ -353,6 +356,7 @@ transStmt x = case x of
     if b
       then exec (AbsCanela.BStmt pos block1)
       else exec (AbsCanela.BStmt pos block2)
+  -- TODO:
   AbsCanela.Match _ expr matchbranchs -> do failure x; return Map.empty;
   AbsCanela.While pos expr stmt -> do 
     (Bool b) <- evalBool expr pos
@@ -372,7 +376,9 @@ transStmt x = case x of
     case Map.lookup ident newEnv of
       Just (_, loc) -> local (\_ -> newEnv) $ execFor (AbsCanela.BStmt pos block) loc right
       _ -> do throwError "CRITICAL ERROR: Iterator not found in the environment"; ask;
-  AbsCanela.SExp _ expr -> do failure x; return Map.empty;
+  AbsCanela.SExp _ expr -> do
+    _ <- eval expr
+    ask
 
 transMatchVar :: Show a => AbsCanela.MatchVar' a -> Result ()
 transMatchVar x = case x of

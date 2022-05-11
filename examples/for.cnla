@@ -1,7 +1,11 @@
 Int main () {
   mut Int x = 2;
+  // Returns 32.
   for i in 0..10 {
     x = x * 2;
+    if x > 16 {
+      return x;
+    }
   }
   return x;
 }
