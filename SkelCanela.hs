@@ -29,6 +29,7 @@ data Value
     | Fun AbsCanela.Type [(AbsCanela.Ident, AbsCanela.Type)] AbsCanela.Block Env 
     | Enum EnumMap
     | NoReturnFlag
+    | ReturnVal Value AbsCanela.BNFC'Position
     | ErrorVal
   deriving (Eq, Ord, Show, Read)
 type Loc = Integer
@@ -40,6 +41,9 @@ type EnumMap = Map.Map AbsCanela.Ident [AbsCanela.Type]
 
 type Run a = ReaderT Env (ExceptT String (StateT Mem IO)) a
 type Result a = Run a
+
+noLoc :: Loc
+noLoc = -1
 
 locBankLoc :: Loc
 locBankLoc = 0
@@ -247,8 +251,9 @@ getDefaultVarValue :: AbsCanela.Type -> Result Value
 getDefaultVarValue (AbsCanela.Int _) = return (Int 0)
 getDefaultVarValue (AbsCanela.Str _) = return (Str "")
 getDefaultVarValue (AbsCanela.Bool _) = return (Bool False)
+getDefaultVarValue (AbsCanela.Func pos) = return (Fun (AbsCanela.Void pos) [] (AbsCanela.Block pos []) Map.empty)
 getDefaultVarValue _ = do
-  throwError "CRITICAL ERROR: DEFAULT VALUE FOR THIS VAR DOES NOT EXIST"
+  throwError "CRITICAL ERROR: DEFAULT VALUE FOR THIS TYPE DOES NOT EXIST"
   return (Int 0)
 
 initVariable :: AbsCanela.Item -> AbsCanela.AccessType -> AbsCanela.Type -> Result Env
@@ -337,14 +342,14 @@ transStmt x = case x of
     case value of
       (Int x) -> exec (AbsCanela.Ass pos ident (AbsCanela.ELitInt pos (x - 1)))
       _ -> do raiseError ("Variable " ++ (show ident) ++ " is not of type int.") pos; ask;
-  AbsCanela.Ret _ expr -> do
+  AbsCanela.Ret pos expr -> do
     st <- get
     value <- eval expr
-    put $ Map.insert returnLoc value st
+    put $ Map.insert returnLoc (ReturnVal value pos) st
     ask
-  AbsCanela.VRet _ -> do
+  AbsCanela.VRet pos -> do
     st <- get
-    put $ Map.insert returnLoc Void st
+    put $ Map.insert returnLoc (ReturnVal Void pos) st
     ask
   AbsCanela.Cond pos expr block -> do 
     (Bool b) <- evalBool expr pos
@@ -434,6 +439,49 @@ evalInt expr pos = do
   checkValueType cond (AbsCanela.Int pos) pos
   return cond
 
+getArgumentLoc :: AbsCanela.Expr -> AbsCanela.AccessType -> Result Loc
+getArgumentLoc (AbsCanela.EVar pos ident) argAccessType = do
+  env <- ask
+  case Map.lookup ident env of
+    Just (accessType, loc) -> do
+      checkAccessType accessType argAccessType
+      return loc;
+    Nothing -> do
+      raiseError ("Variable " ++ (show ident) ++ " was not declared.") pos
+      return noLoc;
+    where
+      checkAccessType (AbsCanela.Const _) (AbsCanela.Mutable _) = do 
+        raiseError ("Variable " ++ (show ident) ++ " is immutable and can't be passed as immutable.") pos
+        return ()
+      checkAccessType _ _ = return ()
+
+getArgumentLoc _ _ = return noLoc
+
+passArguments :: Env -> [(AbsCanela.Ident, AbsCanela.Type)] -> [AbsCanela.Expr] -> AbsCanela.BNFC'Position -> Result Env
+passArguments env [] [] _ = return env
+passArguments _ [] exprs pos = do
+  raiseError "Too many arguments." pos
+  return Map.empty
+passArguments _ args [] pos = do
+  raiseError "Not enough arguments." pos
+  return Map.empty
+passArguments env ((ident, type_):as) (e:es) pos = do
+  val <- eval e
+  checkValueType val type_ (AbsCanela.hasPosition e)
+  case Map.lookup ident env of
+    Just (accessType, loc) -> do
+      st <- get
+      newLoc <- getArgumentLoc e accessType
+
+      if newLoc == noLoc
+        then do
+          put $ Map.insert loc val st
+          passArguments env as es pos
+        else do
+          let newEnv = Map.insert ident (accessType, newLoc) env
+          passArguments newEnv as es pos
+    Nothing -> do throwError "CRITICAL ERROR: Argument was not initialized."; return Map.empty;
+
 eval :: AbsCanela.Expr -> Result Value
 eval x = case x of
   AbsCanela.EVar pos ident -> do
@@ -454,21 +502,26 @@ eval x = case x of
   AbsCanela.ELitFalse _ -> return (Bool False)
   AbsCanela.EString _ string -> return (Str string)
   AbsCanela.EApp pos ident exprs -> do 
-    -- TODO: Add passing arguments (and checking their type correctness).
-    (Fun _ _ block env) <- getFunction ident pos
+    origEnv <- ask
+    (Fun retType args block env) <- getFunction ident pos
+    newEnv <- passArguments env args exprs pos
     
-    local (\_ -> env) $ do 
-      -- TODO: Check if return type matches
+    local (\_ -> newEnv) $ do 
       exec (AbsCanela.BStmt pos block)
       st <- get
       case Map.lookup returnLoc st of
         Just NoReturnFlag -> do 
-          return Void;
-        Just x -> do 
+          case retType of 
+            AbsCanela.Void _ -> return Void
+            _ -> do
+              raiseError "Function did not return anything." pos
+              return Void
+        Just (ReturnVal x retPos) -> do 
           put $ Map.insert returnLoc NoReturnFlag st;
+          checkValueType x retType retPos 
           return x;
         Nothing -> do 
-          throwError "CRITICAL ERROR: Return loc is empty"; 
+          throwError "CRITICAL ERROR: Return loc does not contain a right value."; 
           return ErrorVal;
   AbsCanela.Neg pos expr -> do
     (Int i) <- evalInt expr pos

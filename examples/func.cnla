@@ -1,0 +1,10 @@
+Int f(mut Int x) {
+    x = 2 * x;
+}
+
+
+Int main () {
+  mut Int x = 3;
+  f(x);
+  return x;
+}
