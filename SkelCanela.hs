@@ -457,6 +457,32 @@ getArgumentLoc (AbsCanela.EVar pos ident) argAccessType = do
 
 getArgumentLoc _ _ = return noLoc
 
+genericPrint :: String -> Result ()
+genericPrint s = do
+  liftIO $ putStr s
+  return ()
+
+printValue :: Value -> AbsCanela.BNFC'Position -> Result ()
+-- TODO: Add printing enums
+printValue (Void) _ = genericPrint "Void"
+printValue (Int x) _ = genericPrint (show x)
+printValue (Str s) _ = genericPrint s
+printValue (Bool True) _ = genericPrint "true"
+printValue (Bool False) _ = genericPrint "false"
+printValue (Fun _ _ _ _) _ = genericPrint "Func"
+printValue _ pos = do
+  raiseError "This value type can't be printed." pos
+  return ()
+
+printExprs :: [AbsCanela.Expr] -> Result ()
+printExprs [] = return ()
+printExprs (e:es) = do
+  val <- eval e 
+  printValue val (AbsCanela.hasPosition e)
+  if es /= [] 
+    then do genericPrint " "; printExprs es;
+    else printExprs es;
+
 passArguments :: Env -> [(AbsCanela.Ident, AbsCanela.Type)] -> [AbsCanela.Expr] -> AbsCanela.BNFC'Position -> Result Env
 passArguments env [] [] _ = return env
 passArguments _ [] exprs pos = do
@@ -501,6 +527,12 @@ eval x = case x of
   AbsCanela.ELitTrue _ -> return (Bool True)
   AbsCanela.ELitFalse _ -> return (Bool False)
   AbsCanela.EString _ string -> return (Str string)
+  AbsCanela.EApp pos (AbsCanela.Ident "print") exprs -> do
+    -- Although print acts like a function,
+    -- it's a bit more powerful, 
+    -- since it can have many different arguments.
+    printExprs exprs
+    return Void
   AbsCanela.EApp pos ident exprs -> do 
     origEnv <- ask
     (Fun retType args block env) <- getFunction ident pos
