@@ -1,0 +1,4 @@
+Int main () {
+  print("This print is a bit wild. Like", 100, "% wild.\n");
+  return 0;
+}
