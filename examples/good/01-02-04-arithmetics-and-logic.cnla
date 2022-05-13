@@ -1,0 +1,17 @@
+Int main () {
+  // Output:
+  // 12 Canela true
+  // 6 1
+  // true true true false
+  print(12, "Canela", true);
+  print("\n");
+  
+  print(2 + 2 * 2, 21 % 4);
+  print("\n");
+
+  // Other examples of logic in other examples.
+  print(true && true, true || false, 2 >= 2, 12 > 3 && -7 > 2);
+  print("\n");
+
+  return 0;
+}

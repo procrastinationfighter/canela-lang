@@ -8,6 +8,7 @@ module SkelCanela where
 
 import Prelude
 import System.IO ( hPutStrLn, stderr )
+import System.Exit
 import qualified AbsCanela
 
 import Control.Monad.Identity
@@ -101,7 +102,8 @@ runProgram (AbsCanela.Program pos topdefs) = do
   env <- readTopDefs topdefs
   mainRes <- local (\_ -> env) (eval $ AbsCanela.EApp pos (AbsCanela.Ident "main") [])
   case mainRes of
-    (Int x) -> printStderr $ "Main returned " ++ (show x) ++ "."
+    (Int 0) -> liftIO $ exitWith ExitSuccess
+    (Int x) -> liftIO $ exitWith (ExitFailure $ fromIntegral x)
     _ -> printStderr $ "Function main does not return Int."
   return ()
 
