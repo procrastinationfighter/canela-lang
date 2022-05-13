@@ -45,6 +45,7 @@ data Stmt' a
     = Empty a
     | BStmt a (Block' a)
     | Decl a (AccessType' a) (Type' a) [Item' a]
+    | TopDecl a (TopDef' a)
     | Ass a Ident (Expr' a)
     | Incr a Ident
     | Decr a Ident
@@ -175,6 +176,7 @@ instance HasPosition Stmt where
     Empty p -> p
     BStmt p _ -> p
     Decl p _ _ _ -> p
+    TopDecl p _ -> p
     Ass p _ _ -> p
     Incr p _ -> p
     Decr p _ -> p

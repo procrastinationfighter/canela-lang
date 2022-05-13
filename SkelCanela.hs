@@ -373,6 +373,7 @@ transStmt x = case x of
         checkIfEnumExists ident pos
         declVars items accessType type_
       _ -> declVars items accessType type_
+  AbsCanela.TopDecl _ topdef -> declTopDef topdef
   AbsCanela.Ass pos ident expr -> do 
     env <- ask
     st <- get

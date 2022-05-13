@@ -30,6 +30,8 @@ BStmt.     Stmt ::= Block ;
 
 Decl.      Stmt ::= AccessType Type [Item] ";" ;
 
+TopDecl.   Stmt ::= TopDef ;
+
 NoInit.    Item ::= Ident ; 
 
 Init.      Item ::= Ident "=" Expr ;

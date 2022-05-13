@@ -1,0 +1,16 @@
+Int main() {
+    mut Int x = 2;
+    mut Int y = 2;
+    Void f() {
+        mut Int y = 3;
+        x = x + y;
+    }
+
+    // Prints "2 2"
+    print(x, y, "\n");
+    f();
+    // Prints "5 2"
+    print(x, y, "\n");
+
+    return 0;
+}

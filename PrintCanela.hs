@@ -185,6 +185,7 @@ instance Print (AbsCanela.Stmt' a) where
     AbsCanela.Empty _ -> prPrec i 0 (concatD [doc (showString ";")])
     AbsCanela.BStmt _ block -> prPrec i 0 (concatD [prt 0 block])
     AbsCanela.Decl _ accesstype type_ items -> prPrec i 0 (concatD [prt 0 accesstype, prt 0 type_, prt 0 items, doc (showString ";")])
+    AbsCanela.TopDecl _ topdef -> prPrec i 0 (concatD [prt 0 topdef])
     AbsCanela.Ass _ id_ expr -> prPrec i 0 (concatD [prt 0 id_, doc (showString "="), prt 0 expr, doc (showString ";")])
     AbsCanela.Incr _ id_ -> prPrec i 0 (concatD [prt 0 id_, doc (showString "++"), doc (showString ";")])
     AbsCanela.Decr _ id_ -> prPrec i 0 (concatD [prt 0 id_, doc (showString "--"), doc (showString ";")])
