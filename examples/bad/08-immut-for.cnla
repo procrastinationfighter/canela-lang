@@ -1,0 +1,10 @@
+Int main() {
+    for i in 1..5 {
+        print(i, "\n");
+        if i == 3 {
+            // Will cause a runtime error.
+            i = 5;
+        }
+    }
+    return 0;
+}
