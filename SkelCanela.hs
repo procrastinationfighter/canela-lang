@@ -25,7 +25,7 @@ data Value
     | Int Integer 
     | Str String 
     | Bool Bool 
-    | UserType [Value] 
+    | UserType AbsCanela.Ident AbsCanela.Ident [Value] 
     | Fun AbsCanela.Type [(AbsCanela.Ident, AbsCanela.Type)] AbsCanela.Block Env 
     | Enum EnumMap
     | NoReturnFlag
@@ -119,7 +119,7 @@ readTopDefs defs = case defs of
 addArgToEnv :: Env -> AbsCanela.Arg -> Env
 addArgToEnv env (AbsCanela.Arg _ accessType _ ident) = Map.insert ident (accessType, 0) env
 
--- TODO: Check typing
+-- TODO: Check typing at declaration moment
 declTopDef :: AbsCanela.TopDef -> Result Env
 declTopDef x = case x of
   AbsCanela.FnDef pos type_ ident args block -> do
@@ -149,7 +149,7 @@ declTopDef x = case x of
     let enum = Enum (foldl mapping Map.empty envardefs)
     put $ Map.insert loc enum st
 
-    return Map.empty
+    return newEnv
 
 transArg :: AbsCanela.Arg -> Result ()
 transArg x = case x of
@@ -210,19 +210,25 @@ data Value
   deriving (Eq, Ord, Show, Read)
 -}
 
+handleValuesTypesMatch :: Bool -> AbsCanela.BNFC'Position -> Result ()
+handleValuesTypesMatch cond pos = do
+  if cond 
+    then return ()
+    else do raiseError "Left hand side and right hand side types do not match!" pos; return ();
+
 checkIfValuesTypesMatch :: Value -> Value -> AbsCanela.BNFC'Position -> Result ()
 -- TODO: Check enum types
+checkIfValuesTypesMatch (UserType enumIdent1 _ _) (UserType enumIdent2 _ _) pos = handleValuesTypesMatch (enumIdent1 == enumIdent2) pos
 checkIfValuesTypesMatch l r pos = do
   let lType = f l 
   let rType = f r
-  if lType /= rType 
-    then do raiseError "Left hand side and right hand side types do not match!" pos; return ();
-    else return ()
+  handleValuesTypesMatch (lType == rType) pos
     where
       f Void = 0
       f (Int _) = 1
       f (Str _) = 2
       f (Bool _) = 3
+      f (UserType _ _ _) = 4
       f (Fun _ _ _ _) = 5
 
 checkValueType :: Value -> AbsCanela.Type -> AbsCanela.BNFC'Position -> Result ()
@@ -244,6 +250,10 @@ checkValueType (Fun retType1 leftArgs _ _) (AbsCanela.Fun _ retType2 args2) pos 
         raiseError ("Functional types' arguments do not match.") pos; return ();
     else do
         raiseError ("Functional types' return types do not match.") pos; return ();
+checkValueType (UserType enumIdent1 _ _) (AbsCanela.UserType typePos enumIdent2) pos = do
+  if enumIdent1 == enumIdent2
+    then return ()
+  else checkValueType (Int 1) (AbsCanela.UserType typePos enumIdent2) pos
 checkValueType _ type_ pos = do raiseError ("Expression is not of type " ++ (show type_)) pos; return ();
 
 getDefaultVarValue :: AbsCanela.Type -> Result Value
@@ -252,6 +262,9 @@ getDefaultVarValue (AbsCanela.Int _) = return (Int 0)
 getDefaultVarValue (AbsCanela.Str _) = return (Str "")
 getDefaultVarValue (AbsCanela.Bool _) = return (Bool False)
 getDefaultVarValue (AbsCanela.Func pos) = return (Fun (AbsCanela.Void pos) [] (AbsCanela.Block pos []) Map.empty)
+getDefaultVarValue (AbsCanela.UserType pos _) = do
+  raiseError "Enum variants can't have a default value." pos
+  return ErrorVal
 getDefaultVarValue _ = do
   throwError "CRITICAL ERROR: DEFAULT VALUE FOR THIS TYPE DOES NOT EXIST"
   return (Int 0)
@@ -405,7 +418,6 @@ getFunction ident pos = do
       return ErrorVal
 
 compareValues :: AbsCanela.RelOp -> Value -> Value -> AbsCanela.BNFC'Position -> Result Bool
--- TODO: Add comparison for enums
 compareValues (AbsCanela.NE p) v1 v2 pos = do
   res <- compareValues (AbsCanela.EQU p) v1 v2 pos
   return $ not res
@@ -425,7 +437,12 @@ compareValues (AbsCanela.EQU _) (Str s1) (Str s2) _ = return $ s1 == s2
 compareValues (AbsCanela.GTH _) (Bool b1) (Bool b2) _ = return $ b1 > b2
 compareValues (AbsCanela.GTH _) (Int i1) (Int i2) _ = return $ i1 > i2
 compareValues (AbsCanela.GTH _) (Str s1) (Str s2) _ = return $ s1 > s2
-compareValues _ _ _ pos = do raiseError "The types are not comparable." pos; return False;
+compareValues _ (UserType _ _ _) (UserType _ _ _) pos = do
+  raiseError "Enum variants are not comparable. " pos
+  return False
+compareValues _ _ _ pos = do 
+  raiseError "The types are not comparable." pos; 
+  return False;
 
 evalBool :: AbsCanela.Expr -> AbsCanela.BNFC'Position -> Result Value
 evalBool expr pos = do
@@ -462,14 +479,28 @@ genericPrint s = do
   liftIO $ putStr s
   return ()
 
+printValueList :: [Value] -> AbsCanela.BNFC'Position -> Result ()
+printValueList [] _ = return ()
+printValueList ((UserType id1 id2 values):vs) pos = do
+  genericPrint "("
+  printValue (UserType id1 id2 values) pos
+  genericPrint ")"
+  printValueList vs pos
+printValueList (v:vs) pos = do
+  printValue v pos
+  genericPrint " "
+  printValueList vs pos
+
 printValue :: Value -> AbsCanela.BNFC'Position -> Result ()
--- TODO: Add printing enums
 printValue (Void) _ = genericPrint "Void"
 printValue (Int x) _ = genericPrint (show x)
 printValue (Str s) _ = genericPrint s
 printValue (Bool True) _ = genericPrint "true"
 printValue (Bool False) _ = genericPrint "false"
 printValue (Fun _ _ _ _) _ = genericPrint "Func"
+printValue (UserType (AbsCanela.Ident enumName) (AbsCanela.Ident variantName) values) pos = do
+  genericPrint $ (showString enumName . showString "::" . showString variantName) " "
+  printValueList values pos
 printValue _ pos = do
   raiseError "This value type can't be printed." pos
   return ()
@@ -508,8 +539,47 @@ passArguments env ((ident, type_):as) (e:es) pos = do
           passArguments newEnv as es pos
     Nothing -> do throwError "CRITICAL ERROR: Argument was not initialized."; return Map.empty;
 
+getEnumVariant :: AbsCanela.Ident -> AbsCanela.Ident -> AbsCanela.BNFC'Position -> Result [AbsCanela.Type]
+getEnumVariant enumIdent variantIdent pos = do
+  env <- ask
+  st <- get
+
+  case Map.lookup enumIdent env of
+    Just (_, loc) -> do
+      case Map.lookup loc st of
+        Just (Enum enumMap) -> do
+          case Map.lookup variantIdent enumMap of
+            Just types -> return types
+            Nothing -> do
+              raiseError "Enum variant was not declared." pos
+              return []
+        _ -> do
+          throwError "CRITICAL ERROR: Enum not found in memory."
+          return []
+    Nothing -> do
+      raiseError "Enum type was not declared." pos;
+      return []
+
+getEnumVariantValues :: [AbsCanela.Expr] -> [AbsCanela.Type] -> AbsCanela.BNFC'Position -> Result [Value]
+getEnumVariantValues [] [] _ = return []
+getEnumVariantValues exprs [] pos = do
+  raiseError "Enum variant constructor has too many arguments." pos
+  return []
+getEnumVariantValues [] types pos = do
+  raiseError "Enum variant constructor doesn't have enough arguments." pos
+  return []
+getEnumVariantValues (e:es) (t:ts) pos = do
+  val <- eval e
+  checkValueType val t pos
+  valuesTail <- getEnumVariantValues es ts pos
+  return (val:valuesTail) 
+
 eval :: AbsCanela.Expr -> Result Value
 eval x = case x of
+  AbsCanela.EEnum pos enumIdent variantIdent exprs -> do
+    enumVariant <- getEnumVariant enumIdent variantIdent pos
+    enumValues <- getEnumVariantValues exprs enumVariant pos
+    return (UserType enumIdent variantIdent enumValues)
   AbsCanela.EVar pos ident -> do
     env <- ask
     st <- get
@@ -597,11 +667,10 @@ eval x = case x of
     return (Bool $ b1 || b2)
   _ -> do 
     failure x
-    return (Int 1)
+    return ErrorVal
 {- TODO:
 eval x = case x of
   AbsCanela.ELambda _ args block -> failure x
-  AbsCanela.EEnum _ ident1 ident2 exprs -> failure x
 -}
 
 transAddOp :: Show a => AbsCanela.AddOp' a -> Result ()

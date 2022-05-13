@@ -1,0 +1,21 @@
+enum OptionStr {
+    WithOffset Str, Int;
+    Some Str;
+    None;
+}
+
+enum IntList {
+    Node Int, IntList;
+    Null;
+}
+
+Int main () {
+  con OptionStr o = OptionStr::WithOffset("...Canela", 3);
+  print(o);
+  print("\n");
+  con IntList n1 = IntList::Node(2, IntList::Null());
+  con IntList n2 = IntList::Node(3, n1);
+  print(n2);
+  print("\n");
+  return 0 ;
+}
