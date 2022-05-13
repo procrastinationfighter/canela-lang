@@ -296,12 +296,9 @@ declVars (item:items) accessType type_ = do
   env <- ask
   let ident = getItemIdent item
   let pos = getItemPos item
-  case Map.lookup ident env of
-    Just (AbsCanela.Const _, _) -> do raiseError ((show ident) ++ " is not mutable and can't be reassigned.") pos; return Map.empty;
-    _ -> do
-      env <- initVariable item accessType type_
-      local (\_ -> env) $ do
-        declVars items accessType type_
+  env <- initVariable item accessType type_
+  local (\_ -> env) $ do
+    declVars items accessType type_
 
 execFor :: AbsCanela.Stmt -> Loc -> Integer -> Result Env 
 execFor stmt loc limit = do
@@ -365,7 +362,9 @@ findMatch val ((AbsCanela.MatchBr brPos variant block):bs) pos = do
 transStmt :: AbsCanela.Stmt -> Result Env
 transStmt x = case x of
   AbsCanela.Empty _ -> ask
-  AbsCanela.BStmt _ (AbsCanela.Block _ stmts) -> execStmtList stmts
+  AbsCanela.BStmt _ (AbsCanela.Block _ stmts) -> do 
+    execStmtList stmts
+    ask
   AbsCanela.Decl _ accessType type_ items -> do
     -- Check if type is correct 
     case type_ of

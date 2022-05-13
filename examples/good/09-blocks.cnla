@@ -1,0 +1,12 @@
+Int main() {
+    // Prints 2, then 3, then 2.
+    con Int i = 2;
+    print(i, "\n");
+    {
+        mut Int i = 3;
+        print(i, "\n");
+    }
+    print(i, "\n");
+
+    return 0;
+}
