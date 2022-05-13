@@ -1,0 +1,27 @@
+enum IntList {
+    Node Int, IntList;
+    Null;
+}
+
+IntList map(con Func mapping, con IntList list) {
+    match list {
+        IntList::Node val, tail: {
+            return IntList::Node(mapping(val), map(mapping, tail));
+        }
+        IntList::Null: {
+            return IntList::Null();
+        }
+    };
+}
+
+Int main() {
+    // Input: List [1, 2, 3]
+    // Output: List [2, 4, 6]
+    con IntList begin = IntList::Node(1, IntList::Node(2, IntList::Node(3, IntList::Null())));
+    print(map([con Int v] -> Int {
+                return 2 * v;
+            }, 
+            begin), 
+    "\n");
+    return 0;
+}

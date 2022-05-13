@@ -240,6 +240,7 @@ checkValueType (Void) (AbsCanela.Void _) _ = return ()
 checkValueType (Int _) (AbsCanela.Int _) _ = return ()
 checkValueType (Str _) (AbsCanela.Str _) _ = return ()
 checkValueType (Bool _) (AbsCanela.Bool _) _ = return ()
+checkValueType (Fun _ _ _ _) (AbsCanela.Func _) _ = return ()
 -- TODO: Checking functional type could be simplified if Fun in memory kept the AbsCanela.Fun type.
 checkValueType (Fun retType1 leftArgs _ _) (AbsCanela.Fun _ retType2 args2) pos = do
   let retOk = AbsCanela.compareAbsType retType1 retType2
@@ -275,7 +276,6 @@ initVariable :: AbsCanela.Item -> AbsCanela.AccessType -> AbsCanela.Type -> Resu
 initVariable item accessType type_ = do 
   env <- ask
   loc <- newloc
-  st <- get
   
   let ident = getItemIdent item
   let newEnv = Map.insert ident (accessType, loc) env
@@ -286,6 +286,7 @@ initVariable item accessType type_ = do
       return value
     (AbsCanela.NoInit pos _) -> getDefaultVarValue type_
   
+  st <- get
   put $ Map.insert loc val st
   return newEnv
 
@@ -294,7 +295,7 @@ declVars [] _ _ = ask
 declVars (item:items) accessType type_ = do
   env <- ask
   let ident = getItemIdent item
-  let pos = getItemPos item
+  let pos = AbsCanela.hasPosition item
   env <- initVariable item accessType type_
   local (\_ -> env) $ do
     declVars items accessType type_
@@ -382,7 +383,8 @@ transStmt x = case x of
           Just x -> do
             value <- eval expr
             checkIfValuesTypesMatch x value pos
-            put $ Map.insert loc value st
+            newSt <- get
+            put $ Map.insert loc value newSt
             ask
           Nothing -> do throwError $ "CRITICAL ERROR: State for loc " ++ (show loc) ++ " is empty"; ask;
       Nothing -> do raiseError ("Object " ++ (show ident) ++ " was not defined.") pos; ask;
@@ -397,8 +399,8 @@ transStmt x = case x of
       (Int x) -> exec (AbsCanela.Ass pos ident (AbsCanela.ELitInt pos (x - 1)))
       _ -> do raiseError ("Variable " ++ (show ident) ++ " is not of type int.") pos; ask;
   AbsCanela.Ret pos expr -> do
-    st <- get
     value <- eval expr
+    st <- get
     put $ Map.insert returnLoc (ReturnVal value pos) st
     ask
   AbsCanela.VRet pos -> do
@@ -636,6 +638,8 @@ eval x = case x of
       Just (_, loc) -> case Map.lookup loc st of
         Just x -> return x;
         Nothing -> do 
+          liftIO $ putStrLn $ show env
+          liftIO $ putStrLn $ show (Map.keys st)
           throwError ("CRITICAL ERROR: location of variable " ++ (show ident) ++ " does not exist."); 
           return ErrorVal;
       Nothing -> do 
@@ -667,7 +671,8 @@ eval x = case x of
               raiseError "Function did not return anything." pos
               return Void
         Just (ReturnVal x retPos) -> do 
-          put $ Map.insert returnLoc NoReturnFlag st;
+          newSt <- get
+          put $ Map.insert returnLoc NoReturnFlag newSt;
           checkValueType x retType retPos 
           return x;
         Nothing -> do 

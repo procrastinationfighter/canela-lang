@@ -1,0 +1,25 @@
+enum IntList {
+    Node Int, IntList;
+    Null;
+}
+
+IntList map(con Func mapping, con IntList list) {
+    match list {
+        IntList::Node val, tail: {
+            return IntList::Node(mapping(val), map(mapping, tail));
+        }
+        IntList::Null: {
+            return IntList::Null();
+        }
+    };
+}
+
+Int main() {
+    // Wrong types, runtime error.
+    con IntList begin = IntList::Node(1, IntList::Node(2, IntList::Node(3, IntList::Null())));
+    con Func mapping = [con Bool v] -> Bool {
+        return !v;
+    };
+    print(map(mapping, begin), "\n");
+    return 0;
+}

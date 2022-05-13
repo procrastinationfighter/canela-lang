@@ -1,0 +1,17 @@
+Func createSeedGenerator(con Int x, con Int diff, con Int mod) {
+    mut Int currSeed = x;
+    return [] -> Void {
+        print(currSeed, "\n");
+        currSeed = (currSeed + diff) % mod;
+    };
+}
+
+Int main() {
+  // Prints: 1, 8, 4, 0
+  con Func generateSeed = createSeedGenerator(1, 7, 11);
+  generateSeed();
+  generateSeed();
+  generateSeed();
+  generateSeed();
+  return 0;
+}
