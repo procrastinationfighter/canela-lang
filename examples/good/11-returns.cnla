@@ -1,0 +1,25 @@
+enum Example {
+    CoolVariant Int;
+    BadVariat Bool;
+}
+
+Int i() {
+    return 99;
+}
+
+Str s() {
+    return "Luftballons";
+}
+
+Bool b() {
+    return true;
+}
+
+Example e() {
+    return Example::CoolVariant(42);
+}
+
+Int main() {
+    print(i(), s(), b(), e(), "\n");
+    return 0;
+}
