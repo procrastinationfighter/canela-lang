@@ -5,13 +5,14 @@ enum OptionStr {
 }
 
 Int main () {
-  con OptionStr o = OptionStr::WithOffset("...Canela", 3);
+  con OptionStr o = OptionStr::None();
   match o {
     OptionStr::WithOffset s, c: {
-        print("many");
+        print(s, c);
+        print("\nmany\n");
     }
     _: {
-        print("not so many");
+        print("not so many\n");
     }
   };
   return 0 ;

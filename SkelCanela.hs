@@ -319,6 +319,46 @@ execFor stmt loc limit = do
           ask
     _ -> do throwError "CRITICAL ERROR: Iterator not found in the state."; ask;
 
+assignBranchVars :: [Value] -> [AbsCanela.Ident] -> AbsCanela.BNFC'Position -> Result Env
+assignBranchVars [] [] _ = ask
+assignBranchVars vals [] pos = do
+  raiseError "Match unsuccesful: not enough variables" pos
+  return Map.empty
+assignBranchVars [] vars pos = do
+  raiseError "Match unsuccesful: too many variables" pos
+  return Map.empty
+assignBranchVars (val:vals) (var:vars) pos = do
+  env <- assignBranchVars vals vars pos
+  loc <- newloc
+  st <- get
+  let newEnv = Map.insert var ((AbsCanela.Const pos), loc) env
+  put $ Map.insert loc val st
+  return newEnv
+
+getMatchBranchEnv :: Value -> AbsCanela.MatchVar -> AbsCanela.BNFC'Position -> Result Env
+getMatchBranchEnv _ (AbsCanela.MatchDefault _) _ = ask
+getMatchBranchEnv (UserType _ _ vals) (AbsCanela.MatchVar _ _ _ vars) pos = assignBranchVars vals vars pos
+
+checkMatch :: Value -> AbsCanela.MatchVar -> AbsCanela.BNFC'Position -> Result Bool
+-- TODO: Add matches for other types than enums.
+checkMatch _ (AbsCanela.MatchDefault _) _ = return True
+checkMatch (UserType enumIdent1 variantIdent1 _) (AbsCanela.MatchVar _ enumIdent2 variantIdent2 _) pos = 
+  return $ enumIdent1 == enumIdent2 && variantIdent1 == variantIdent2
+
+findMatch :: Value -> [AbsCanela.MatchBranch] -> AbsCanela.BNFC'Position -> Result ()
+findMatch _ [] pos = do
+  raiseError "No match found." pos;
+  return ()
+findMatch val ((AbsCanela.MatchBr brPos variant block):bs) pos = do
+  ok <- checkMatch val variant pos
+  if ok 
+    then do
+      env <- getMatchBranchEnv val variant pos
+      local (\_ -> env) $ exec (AbsCanela.BStmt brPos block)
+      return ()
+    else
+      findMatch val bs pos
+
 transStmt :: AbsCanela.Stmt -> Result Env
 transStmt x = case x of
   AbsCanela.Empty _ -> ask
@@ -374,8 +414,10 @@ transStmt x = case x of
     if b
       then exec (AbsCanela.BStmt pos block1)
       else exec (AbsCanela.BStmt pos block2)
-  -- TODO:
-  AbsCanela.Match _ expr matchbranchs -> do failure x; return Map.empty;
+  AbsCanela.Match pos expr branches -> do 
+    val <- eval expr
+    findMatch val branches pos
+    ask
   AbsCanela.While pos expr stmt -> do 
     (Bool b) <- evalBool expr pos
     if b
