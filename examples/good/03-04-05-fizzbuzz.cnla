@@ -1,0 +1,26 @@
+Int main () {
+  con Int x = 20;
+  mut Int i = 1;
+
+  while i <= x {
+      con Int mod3 = i % 3;
+      con Int mod5 = i % 5;
+
+      if mod3 == 0 {
+          if mod5 == 0 {
+              print("FizzBuzz\n");
+          } else {
+              print("Fizz\n");
+          }
+      } else {
+          if mod5 == 0 {
+              print("Buzz\n");
+          } else {
+              print(i, "\n");
+          }
+      }
+      i++;
+  }
+
+  return 0;
+}

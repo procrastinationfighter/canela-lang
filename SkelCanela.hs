@@ -424,8 +424,8 @@ transStmt x = case x of
     (Bool b) <- evalBool expr pos
     if b
       then do
-        newEnv <- exec stmt
-        local (\_ -> newEnv) $ exec (AbsCanela.While pos expr stmt)
+        exec stmt
+        exec (AbsCanela.While pos expr stmt)
       else ask
   AbsCanela.For pos ident expr1 expr2 block -> do 
     (Int left) <- evalInt expr1 pos
@@ -470,7 +470,7 @@ compareValues (AbsCanela.GE p) v1 v2 pos = do
   gth <- compareValues (AbsCanela.GTH p) v1 v2 pos
   return $ eq || gth
 compareValues (AbsCanela.LE p) v1 v2 pos = do
-  res <- compareValues (AbsCanela.LTH p) v1 v2 pos
+  res <- compareValues (AbsCanela.GTH p) v1 v2 pos
   return $ not res
 compareValues (AbsCanela.LTH p) v1 v2 pos = do 
   res <- compareValues (AbsCanela.GE p) v1 v2 pos

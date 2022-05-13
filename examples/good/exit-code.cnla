@@ -1,0 +1,5 @@
+Int main () {
+  // The program will exit with exit code 3.
+  // Use echo $? to test.
+  return 3;
+}
