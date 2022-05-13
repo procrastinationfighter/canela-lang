@@ -1,0 +1,20 @@
+enum OptionStr {
+    WithOffset Str, Int;
+    Some Str;
+    None;
+}
+
+Int main() {
+  con OptionStr o = OptionStr::WithOffset("...Canela", 3);
+  // Will fail - no branch for WithOffset.
+  match o {
+      OptionStr::Some s: {
+          print("Yay!\n");
+      }
+      OptionStr::None: {
+          print("Silence...\n");
+      }
+  };
+
+  return 0;
+}

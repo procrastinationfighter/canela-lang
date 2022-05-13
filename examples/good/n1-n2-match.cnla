@@ -1,0 +1,31 @@
+enum OptionStr {
+    WithOffset Str, Int;
+    Some Str;
+    None;
+}
+
+Int main() {
+  con OptionStr o = OptionStr::WithOffset("...Canela", 3);
+  // Will match the first branch.
+  match o {
+    OptionStr::WithOffset s, c: {
+        print(s, c, "\n");
+        print("hmm... There's an offset\n");
+    }
+    _: {
+        print("No offset!\n");
+    }
+  };
+
+  // Will match the default branch.
+  match o {
+      OptionStr::Some s: {
+          print("Yay!\n");
+      }
+      _: {
+          print("That's a good thing there's a default branch!\n");
+      }
+  };
+
+  return 0;
+}
