@@ -20,7 +20,6 @@ import Data.Maybe
 
 import qualified Data.Map as Map 
 
--- TODO: Lambdas shall be done at the end.
 data Value 
     = Void
     | Int Integer 
@@ -122,6 +121,12 @@ addArgToEnv :: Env -> AbsCanela.Arg -> Env
 addArgToEnv env (AbsCanela.Arg _ accessType _ ident) = 
   Map.insert ident (accessType, noLoc) env
 
+createFun :: AbsCanela.Type -> [AbsCanela.Arg] -> Env -> AbsCanela.Block -> Result Value
+createFun type_ args env block = do
+  let finalEnv = Map.union env $ foldl addArgToEnv Map.empty args
+  let vars = map (\(AbsCanela.Arg _ _ t i) -> (i, t)) args
+  return (Fun type_ vars block finalEnv)
+
 -- TODO: Check typing at declaration moment
 declTopDef :: AbsCanela.TopDef -> Result Env
 declTopDef x = case x of
@@ -131,14 +136,11 @@ declTopDef x = case x of
     st <- get
 
     -- newEnv adds the function into the environment,
-    -- finalEnv also contains the function's arguments as local variables.
+    -- createFun creates a function with its variables in the enviroment.
     -- Hence, other functions should only see this function, 
     -- but this function can also see its variables.
     let newEnv = Map.insert ident ((AbsCanela.Const pos), loc) env
-    let finalEnv = Map.union newEnv $ foldl addArgToEnv Map.empty args
-    let vars = map (\(AbsCanela.Arg _ _ t i) -> (i, t)) args
-
-    let fun = (Fun type_ vars block finalEnv)
+    fun <- createFun type_ args newEnv block
     put $ Map.insert loc fun st
     return newEnv
   AbsCanela.EnDef pos ident envardefs -> do
@@ -220,7 +222,6 @@ handleValuesTypesMatch cond pos = do
     else do raiseError "Left hand side and right hand side types do not match!" pos; return ();
 
 checkIfValuesTypesMatch :: Value -> Value -> AbsCanela.BNFC'Position -> Result ()
--- TODO: Check enum types
 checkIfValuesTypesMatch (UserType enumIdent1 _ _) (UserType enumIdent2 _ _) pos = handleValuesTypesMatch (enumIdent1 == enumIdent2) pos
 checkIfValuesTypesMatch l r pos = do
   let lType = f l 
@@ -235,7 +236,6 @@ checkIfValuesTypesMatch l r pos = do
       f (Fun _ _ _ _) = 5
 
 checkValueType :: Value -> AbsCanela.Type -> AbsCanela.BNFC'Position -> Result ()
--- TODO: Add user type checking
 checkValueType (Void) (AbsCanela.Void _) _ = return ()
 checkValueType (Int _) (AbsCanela.Int _) _ = return ()
 checkValueType (Str _) (AbsCanela.Str _) _ = return ()
@@ -260,7 +260,6 @@ checkValueType (UserType enumIdent1 _ _) (AbsCanela.UserType typePos enumIdent2)
 checkValueType _ type_ pos = do raiseError ("Expression is not of type " ++ (show type_)) pos; return ();
 
 getDefaultVarValue :: AbsCanela.Type -> Result Value
--- TODO: Add support for all types
 getDefaultVarValue (AbsCanela.Int _) = return (Int 0)
 getDefaultVarValue (AbsCanela.Str _) = return (Str "")
 getDefaultVarValue (AbsCanela.Bool _) = return (Bool False)
@@ -622,6 +621,9 @@ getEnumVariantValues (e:es) (t:ts) pos = do
 
 eval :: AbsCanela.Expr -> Result Value
 eval x = case x of
+  AbsCanela.ELambda _ args type_ block -> do 
+    env <- ask
+    createFun type_ args env block
   AbsCanela.EEnum pos enumIdent variantIdent exprs -> do
     enumVariant <- getEnumVariant enumIdent variantIdent pos
     enumValues <- getEnumVariantValues exprs enumVariant pos
@@ -711,13 +713,6 @@ eval x = case x of
     (Bool b1) <- evalBool expr1 pos
     (Bool b2) <- evalBool expr2 pos
     return (Bool $ b1 || b2)
-  _ -> do 
-    failure x
-    return ErrorVal
-{- TODO:
-eval x = case x of
-  AbsCanela.ELambda _ args block -> failure x
--}
 
 transAddOp :: Show a => AbsCanela.AddOp' a -> Result ()
 transAddOp x = case x of
