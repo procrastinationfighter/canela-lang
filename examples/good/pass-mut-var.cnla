@@ -1,0 +1,11 @@
+Void f(mut Int x) {
+    x = 2 * x;
+}
+
+Int main () {
+    // Prints 24.
+    mut Int x = 12;
+    f(x);
+    print(x, "\n");
+    return 0;
+}

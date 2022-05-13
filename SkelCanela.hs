@@ -512,7 +512,7 @@ getArgumentLoc (AbsCanela.EVar pos ident) argAccessType = do
       return noLoc;
     where
       checkAccessType (AbsCanela.Const _) (AbsCanela.Mutable _) = do 
-        raiseError ("Variable " ++ (show ident) ++ " is immutable and can't be passed as immutable.") pos
+        raiseError ("Variable " ++ (show ident) ++ " is immutable and can't be passed as mutable.") pos
         return ()
       checkAccessType _ _ = return ()
 

@@ -1,0 +1,12 @@
+Void f(mut Int x) {
+    print("This function has been called!\n");
+    x = 2 * x;
+}
+
+Int main () {
+    // Runtime error, x can't be changed.
+    con Int x = 12;
+    f(x);
+    print(x, "\n");
+    return 0;
+}
