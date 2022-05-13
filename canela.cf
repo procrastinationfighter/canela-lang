@@ -94,7 +94,7 @@ Mutable.   AccessType ::= "mut" ;
 
 -- Expressions ---------------------------------------------
 
-ELambda.   Expr7 ::= "[" [Arg] "]" Block ;
+ELambda.   Expr7 ::= "[" [Arg] "]" "->" Type Block ;
 
 EEnum.     Expr6 ::= Ident "::" Ident "(" [Expr] ")" ;
 

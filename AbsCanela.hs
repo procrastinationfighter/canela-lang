@@ -102,7 +102,7 @@ data AccessType' a = Const a | Mutable a
 
 type Expr = Expr' BNFC'Position
 data Expr' a
-    = ELambda a [Arg' a] (Block' a)
+    = ELambda a [Arg' a] (Type' a) (Block' a)
     | EEnum a Ident Ident [Expr' a]
     | EVar a Ident
     | ELitInt a Integer
@@ -218,7 +218,7 @@ instance HasPosition AccessType where
 
 instance HasPosition Expr where
   hasPosition = \case
-    ELambda p _ _ -> p
+    ELambda p _ _ _ -> p
     EEnum p _ _ _ -> p
     EVar p _ -> p
     ELitInt p _ -> p

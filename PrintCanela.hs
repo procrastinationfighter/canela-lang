@@ -247,7 +247,7 @@ instance Print (AbsCanela.AccessType' a) where
 
 instance Print (AbsCanela.Expr' a) where
   prt i = \case
-    AbsCanela.ELambda _ args block -> prPrec i 7 (concatD [doc (showString "["), prt 0 args, doc (showString "]"), prt 0 block])
+    AbsCanela.ELambda _ args type_ block -> prPrec i 7 (concatD [doc (showString "["), prt 0 args, doc (showString "]"), doc (showString "->"), prt 0 type_, prt 0 block])
     AbsCanela.EEnum _ id_1 id_2 exprs -> prPrec i 6 (concatD [prt 0 id_1, doc (showString "::"), prt 0 id_2, doc (showString "("), prt 0 exprs, doc (showString ")")])
     AbsCanela.EVar _ id_ -> prPrec i 6 (concatD [prt 0 id_])
     AbsCanela.ELitInt _ n -> prPrec i 6 (concatD [prt 0 n])
