@@ -1,8 +1,14 @@
+Int getLimit() {
+  print("Taking the limit!\n");
+  return 10;
+}
+
 Int main () {
   mut Int x = 0;
-  // Prints 21 (which is equal to 0 + 1 + 2 + 3 + 4 + 5 + 6).
-  for i in 0..10 {
+  // Will print "Taking the limit!" once.
+  for i in 0..getLimit() {
     x = x + i;
+    // Prints 21 (which is equal to 0 + 1 + 2 + 3 + 4 + 5 + 6).
     if x > 20 {
       print(x, "\n");
       return 0;
