@@ -119,7 +119,8 @@ readTopDefs defs = case defs of
       return finalEnv
 
 addArgToEnv :: Env -> AbsCanela.Arg -> Env
-addArgToEnv env (AbsCanela.Arg _ accessType _ ident) = Map.insert ident (accessType, 0) env
+addArgToEnv env (AbsCanela.Arg _ accessType _ ident) = 
+  Map.insert ident (accessType, noLoc) env
 
 -- TODO: Check typing at declaration moment
 declTopDef :: AbsCanela.TopDef -> Result Env
@@ -570,14 +571,16 @@ passArguments env ((ident, type_):as) (e:es) pos = do
   val <- eval e
   checkValueType val type_ (AbsCanela.hasPosition e)
   case Map.lookup ident env of
-    Just (accessType, loc) -> do
-      st <- get
+    Just (accessType, _) -> do
       newLoc <- getArgumentLoc e accessType
 
       if newLoc == noLoc
         then do
-          put $ Map.insert loc val st
-          passArguments env as es pos
+          finalLoc <- newloc
+          st <- get
+          let newEnv = Map.insert ident (accessType, finalLoc) env
+          put $ Map.insert finalLoc val st
+          passArguments newEnv as es pos
         else do
           let newEnv = Map.insert ident (accessType, newLoc) env
           passArguments newEnv as es pos
