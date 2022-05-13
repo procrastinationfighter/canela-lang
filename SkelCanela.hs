@@ -669,7 +669,7 @@ eval x = case x of
           case retType of 
             AbsCanela.Void _ -> return Void
             _ -> do
-              raiseError "Function did not return anything." pos
+              raiseError ("Function " ++ show ident ++ " did not return anything.") pos
               return Void
         Just (ReturnVal x retPos) -> do 
           newSt <- get

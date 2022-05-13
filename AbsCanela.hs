@@ -12,7 +12,7 @@ module AbsCanela where
 
 import Prelude (Integer, String, (&&), (==))
 import qualified Prelude as C
-  ( Eq, Ord, Show, Read
+  ( Eq, Ord, Show(show), Read
   , Functor, Foldable, Traversable
   , Int, Bool( True, False ), Maybe(..)
   )
@@ -133,7 +133,11 @@ data RelOp' a = LTH a | LE a | GTH a | GE a | EQU a | NE a
   deriving (C.Eq, C.Ord, C.Show, C.Read, C.Functor, C.Foldable, C.Traversable)
 
 newtype Ident = Ident String
-  deriving (C.Eq, C.Ord, C.Show, C.Read, Data.String.IsString)
+  deriving (C.Eq, C.Ord, C.Read, Data.String.IsString)
+
+instance C.Show Ident where
+  show (Ident s) = C.show s
+
 
 -- | Start position (line, column) of something.
 
