@@ -1,4 +1,4 @@
-Int f(mut Int x) {
+Void f(mut Int x) {
     x = 2 * x;
 }
 

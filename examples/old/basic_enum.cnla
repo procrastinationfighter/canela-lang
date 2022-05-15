@@ -11,11 +11,9 @@ enum IntList {
 
 Int main () {
   con OptionStr o = OptionStr::WithOffset("...Canela", 3);
-  print(o);
-  print("\n");
+  print(o, "\n");
   con IntList n1 = IntList::Node(2, IntList::Null());
   con IntList n2 = IntList::Node(3, n1);
-  print(n2);
-  print("\n");
+  print(n2, "\n");
   return 0 ;
 }
