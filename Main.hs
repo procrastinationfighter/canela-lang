@@ -18,7 +18,7 @@ import AbsCanela   ( Program )
 import LexCanela   ( Token, mkPosToken )
 import ParCanela   ( pProgram, myLexer )
 import PrintCanela ( Print, printTree )
-import SkelCanela  ( interpret )
+import CanelaInterpreter  ( interpret )
 
 type Err        = Either String
 type ParseFun a = [Token] -> Err a
