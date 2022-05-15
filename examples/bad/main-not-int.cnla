@@ -1,0 +1,4 @@
+Str main() {
+
+    return "A string!";
+}

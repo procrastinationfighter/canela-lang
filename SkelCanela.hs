@@ -103,7 +103,10 @@ runProgram (AbsCanela.Program pos topdefs) = do
   case mainRes of
     (Int 0) -> liftIO $ exitWith ExitSuccess
     (Int x) -> liftIO $ exitWith (ExitFailure $ fromIntegral x)
-    _ -> printStderr $ "Function main does not return Int."
+    _ -> do
+      printStderr $ "Function main did not return Int. Instead, it returned: "
+      printValue mainRes pos
+      liftIO $ putStrLn ""
   return ()
 
 readTopDefs :: [AbsCanela.TopDef] -> Result Env
@@ -196,24 +199,6 @@ checkIfEnumExists ident pos = do
 getItemIdent :: AbsCanela.Item -> AbsCanela.Ident
 getItemIdent (AbsCanela.Init _ ident _) = ident
 getItemIdent (AbsCanela.NoInit _ ident) = ident
-
-getItemPos :: AbsCanela.Item -> AbsCanela.BNFC'Position
-getItemPos (AbsCanela.Init pos _ _) = pos
-getItemPos (AbsCanela.NoInit pos _) = pos
-
-{-
-data Value 
-    = Void
-    | Int Integer 
-    | Str String 
-    | Bool Bool 
-    | UserType [Value] 
-    | Fun AbsCanela.Type [(AbsCanela.Ident, AbsCanela.Type)] AbsCanela.Block Env 
-    | Enum EnumMap
-    | NoReturnFlag
-    | ErrorVal
-  deriving (Eq, Ord, Show, Read)
--}
 
 handleValuesTypesMatch :: Bool -> AbsCanela.BNFC'Position -> Result ()
 handleValuesTypesMatch cond pos = do
