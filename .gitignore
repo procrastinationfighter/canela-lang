@@ -3,9 +3,9 @@
 *.x
 *.y
 *.info
-Makefile
 DocCanela.txt
 TestCanela
 *.bak
 Canela
 Main
+interpreter

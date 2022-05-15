@@ -17,7 +17,6 @@ import Control.Monad      ( when )
 import AbsCanela   ( Program )
 import LexCanela   ( Token, mkPosToken )
 import ParCanela   ( pProgram, myLexer )
-import PrintCanela ( Print, printTree )
 import CanelaInterpreter  ( interpret )
 
 type Err        = Either String
